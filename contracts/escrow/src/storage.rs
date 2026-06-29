@@ -140,4 +140,30 @@ mod tests {
         assert_eq!(read_vendors, vendor_ids);
         assert_eq!(read_buyers, buyer_ids);
     }
+
+    #[test]
+    fn unified_key_enum_no_collision_between_buyer_and_vendor() {
+        let env = Env::default();
+        let contract_id = env.register(Escrow, ());
+        let addr = Address::generate(&env);
+
+        let mut vendor_ids = Vec::new(&env);
+        vendor_ids.push_back(10u64);
+
+        let mut buyer_ids = Vec::new(&env);
+        buyer_ids.push_back(20u64);
+
+        env.as_contract(&contract_id, || {
+            write_vendor_escrow_index(&env, &addr, &vendor_ids);
+            write_buyer_escrow_index(&env, &addr, &buyer_ids);
+        });
+
+        let got_vendor =
+            env.as_contract(&contract_id, || read_vendor_escrow_index(&env, &addr));
+        let got_buyer =
+            env.as_contract(&contract_id, || read_buyer_escrow_index(&env, &addr));
+
+        assert_eq!(got_vendor, vendor_ids, "VendorEscrowIndex and BuyerEscrowIndex must not collide for the same address");
+        assert_eq!(got_buyer, buyer_ids, "BuyerEscrowIndex must be independent of VendorEscrowIndex");
+    }
 }
