@@ -639,6 +639,107 @@ pub fn emit_resolver_rotated(
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MilestoneEscrowCreated {
+    pub escrow_id: u64,
+    pub milestone_count: u32,
+    pub total_amount: i128,
+    pub timestamp: u64,
+}
+
+/// Topic: `("milestone_escrow_created",)`, data: `MilestoneEscrowCreated`.
+pub fn emit_milestone_escrow_created(
+    env: &Env,
+    escrow_id: u64,
+    milestone_count: u32,
+    total_amount: i128,
+) {
+    env.events().publish(
+        (Symbol::new(env, "milestone_escrow_created"),),
+        MilestoneEscrowCreated {
+            escrow_id,
+            milestone_count,
+            total_amount,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MilestoneReleased {
+    pub escrow_id: u64,
+    pub milestone_index: u32,
+    pub seller: Address,
+    pub amount: i128,
+    pub remaining_milestones: u32,
+    pub released_at: u64,
+}
+
+/// Topic: `("milestone_released", escrow_id)`, data: `MilestoneReleased`.
+///
+/// `escrow_id` is kept in the topic (unlike most single-topic events here) so
+/// off-chain indexers can filter the release history of one specific escrow
+/// without scanning every milestone release on the contract.
+pub fn emit_milestone_released(
+    env: &Env,
+    escrow_id: u64,
+    milestone_index: u32,
+    seller: Address,
+    amount: i128,
+    remaining_milestones: u32,
+) {
+    env.events().publish(
+        (Symbol::new(env, "milestone_released"), escrow_id),
+        MilestoneReleased {
+            escrow_id,
+            milestone_index,
+            seller,
+            amount,
+            remaining_milestones,
+            released_at: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EscrowTrancheFunded {
+    pub escrow_id: u64,
+    pub buyer: Address,
+    pub tranche_amount: i128,
+    pub funded_amount: i128,
+    pub total_amount: i128,
+    pub timestamp: u64,
+}
+
+/// Topic: `("escrow_tranche_funded", escrow_id)`, data: `EscrowTrancheFunded`.
+///
+/// Emitted for a partial-funding call that does *not* yet complete funding.
+/// Once `funded_amount` reaches `total_amount`, `emit_escrow_funded` fires
+/// instead (on that same call) - exactly as for a single lump-sum payment.
+pub fn emit_escrow_tranche_funded(
+    env: &Env,
+    escrow_id: u64,
+    buyer: Address,
+    tranche_amount: i128,
+    funded_amount: i128,
+    total_amount: i128,
+) {
+    env.events().publish(
+        (Symbol::new(env, "escrow_tranche_funded"), escrow_id),
+        EscrowTrancheFunded {
+            escrow_id,
+            buyer,
+            tranche_amount,
+            funded_amount,
+            total_amount,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenAllowlistUpdated {
     pub schema_version: u32,
     pub token: Address,
