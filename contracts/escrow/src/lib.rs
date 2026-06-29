@@ -3708,3 +3708,5 @@ mod test_unauthorized;
 mod test_auth_matrix;
 mod test_shipping_window;
 mod test_withdraw_fees;
+mod malicious_token;
+mod test_malicious_token;
