@@ -1301,12 +1301,6 @@ impl Escrow {
             }
         }
 
-        // Wrap single resolver in ResolverSet for backward compatibility
-        let resolvers = ResolverSet::Single(resolver);
-
-        // Security: all three roles must be distinct to preserve the trustless
-        // three-party separation.
-        validate_resolvers(&resolvers, &seller, &buyer)?;
         // Security: buyer must differ from seller and resolver.
         for i in 0..escrow.payees.len() {
             let payee = escrow.payees.get(i).unwrap();
