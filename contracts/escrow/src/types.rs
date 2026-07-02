@@ -27,6 +27,7 @@ pub enum DataKey {
 
     // Persistent storage: per-escrow data and user indexes.
     Escrow(u64),
+    EscrowStateHistory(u64),
     Dispute(u64),
     Messages(u64),
     PendingExpiry(u64),
