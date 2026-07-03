@@ -2092,7 +2092,33 @@ impl Escrow {
             crate::EscrowState::Completed,
         );
         Ok(())
-    }
+    }    pub fn raise_dispute(
+        env: Env,
+        caller: Address,
+        escrow_id: u64,
+        reason: Symbol,
+        description: String,
+        evidence_hash: BytesN<32>,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+
+        ensure_not_paused(&env)?;
+        let mut escrow = load_escrow(&env, escrow_id)?;
+
+        let buyer = escrow.buyer.clone().ok_or(ContractError::EscrowHasNoBuyer)?;
+        if caller != buyer {
+            return Err(ContractError::NotAuthorized);
+        }
+
+        // Allowed from Funded or Shipped
+        if escrow.state != EscrowState::Funded && escrow.state != EscrowState::Shipped {
+            return Err(ContractError::InvalidState);
+        }
+
+        // Window check: after issue #212, this uses ledger timestamp comparison
+        if env.ledger().timestamp() >= escrow.dispute_deadline {
+            return Err(ContractError::InvalidState); // Temporarily using InvalidState until specific error is restored
+        }
 
     pub fn co_signed_release(env: Env, caller: Address, escrow_id: u64) -> Result<(), ContractError> {
         // SECURITY:
