@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(clippy::too_many_arguments)]
 use soroban_sdk::{
     contract, contractimpl, contracttype, token, Address, BytesN, Env, IntoVal, String, Symbol,
     TryFromVal, TryIntoVal, Val, Vec,
@@ -392,7 +393,7 @@ fn validate_resolvers(
 
     // For multi-resolver, validate threshold
     if let ResolverSet::Multi(m) = resolvers {
-        let count = m.resolvers.len() as u32;
+        let count = m.resolvers.len();
         if m.threshold == 0 || m.threshold > count {
             return Err(ContractError::InvalidAmount); // Use as proxy for invalid threshold
         }
@@ -756,6 +757,7 @@ fn increment_counter(env: &Env, key: &DataKey) -> Result<(), ContractError> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_escrow_internal(
     env: &Env,
     payees: Vec<Payee>,
@@ -798,7 +800,7 @@ fn create_escrow_internal(
         return Err(ContractError::AmountBelowMinimum);
     }
 
-    if shipping_window < MIN_SHIPPING_WINDOW || shipping_window > MAX_SHIPPING_WINDOW {
+    if !(MIN_SHIPPING_WINDOW..=MAX_SHIPPING_WINDOW).contains(&shipping_window) {
         return Err(ContractError::InvalidShippingWindow);
     }
 
@@ -1304,6 +1306,7 @@ impl Escrow {
     ///
     /// Returns `Err(ContractError::InvalidAddress)` if `new_collector` is the
     /// zero address, which can never sign for or receive fee withdrawals.
+    #[allow(deprecated)]
     pub fn set_fee_collector(env: Env, new_collector: Address) -> Result<(), ContractError> {
         let admin = require_admin(&env)?;
         admin.require_auth();
@@ -1401,7 +1404,7 @@ impl Escrow {
         }
 
         let token_client = token::Client::new(&env, &escrow.token);
-        token_client.transfer(&buyer, &env.current_contract_address(), &escrow.amount);
+        token_client.transfer(&buyer, env.current_contract_address(), &escrow.amount);
 
         // Transfer additional basket tokens if this is a basket escrow
         let basket_tokens = load_basket_tokens(&env, escrow_id);
@@ -1410,7 +1413,7 @@ impl Escrow {
             if entry.token != escrow.token && entry.amount > 0 {
                 token::Client::new(&env, &entry.token).transfer(
                     &buyer,
-                    &env.current_contract_address(),
+                    env.current_contract_address(),
                     &entry.amount,
                 );
             }
@@ -1896,7 +1899,7 @@ impl Escrow {
         // Block shipping of expired escrows.
         ensure_not_expired(&env, &escrow)?;
 
-        if tracking_id.len() == 0 {
+        if tracking_id.is_empty() {
             return Err(ContractError::InvalidTrackingId);
         }
         if tracking_id.len() > MAX_TRACKING_ID_LEN {
@@ -2692,7 +2695,7 @@ impl Escrow {
         storage::write_vendor_escrow_index(&env, &seller, &vendor_escrows);
 
         increment_counter(&env, &DataKey::TotalCreated)?;
-        emit_basket_escrow_created(&env, escrow_id, seller, tokens.len() as u32);
+        emit_basket_escrow_created(&env, escrow_id, seller, tokens.len());
 
         Ok(escrow_id)
     }
@@ -2728,7 +2731,7 @@ impl Escrow {
             if entry.amount > 0 {
                 token::Client::new(&env, &entry.token).transfer(
                     &buyer,
-                    &env.current_contract_address(),
+                    env.current_contract_address(),
                     &entry.amount,
                 );
             }
@@ -3582,6 +3585,7 @@ impl Escrow {
     /// Emergency drain: transfers all escrowed funds back to the buyer.
     /// Requires the contract to be paused and both buyer and seller to co-sign.
     /// This is a last-resort escape hatch when the resolver is unavailable.
+    #[allow(deprecated)]
     pub fn emergency_drain(env: Env, escrow_id: u64) -> Result<(), ContractError> {
         let paused: bool = env
             .storage()

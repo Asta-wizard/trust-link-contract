@@ -3,7 +3,7 @@
 use crate::{Escrow, EscrowClient, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
-    token, Address, Env, IntoVal, String, Vec,
+    token, Address, Env, IntoVal, Vec,
 };
 
 pub fn setup_contract(env: &Env) -> (Address, EscrowClient, Address, Address) {
@@ -33,7 +33,7 @@ pub fn create_funded_escrow(
     token: &Address,
     amount: i128,
     fee_bps: u32,
-    shipping_window: u64,
+    _shipping_window: u64,
 ) -> u64 {
     mint_token(env, token, buyer, amount);
     let mut payees = Vec::new(env);

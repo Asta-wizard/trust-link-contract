@@ -15,8 +15,8 @@ fn test_admin_rotation() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let token = register_token(&env);
-    let (contract_id, client, admin, fee_collector) = setup_contract(&env);
+    let _token = register_token(&env);
+    let (_contract_id, client, _admin, _fee_collector) = setup_contract(&env);
 
     let new_admin = Address::generate(&env);
 

@@ -2,10 +2,10 @@
 
 use crate::helpers::payout::calculate_protocol_fee;
 use crate::test_helpers::{advance_time, create_funded_escrow, setup_contract};
-use crate::{ContractError, Escrow, EscrowClient, Payee, MIN_ESCROW_AMOUNT};
+use crate::{ContractError, Escrow, EscrowClient, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
-    token, Address, BytesN, Env, IntoVal, String as SorobanString, Symbol, Vec,
+    Address, BytesN, Env, IntoVal, String as SorobanString, Symbol, Vec,
 };
 
 /// Seconds the dispute window stays open after funding (mirrors the private
@@ -216,7 +216,7 @@ fn test_confirm_delivery_leaves_no_dust_for_non_divisible_amounts() {
     for (amount, fee_bps) in non_divisible_fee_cases() {
         let env = Env::default();
         env.mock_all_auths();
-        let (contract_id, client, admin, fee_collector) = setup_contract(&env);
+        let (_contract_id, client, admin, fee_collector) = setup_contract(&env);
 
         // Set protocol fee to match the per-escrow fee_bps used for testing
         client.set_protocol_fee(&admin, &fee_bps);

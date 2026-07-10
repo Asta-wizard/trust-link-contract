@@ -1,11 +1,8 @@
 #![cfg(test)]
 
 use crate::test_helpers::setup_contract;
-use crate::{EscrowState, Payee};
-use soroban_sdk::{
-    testutils::{Address as _, Ledger as _},
-    Address, Env, IntoVal, String,
-};
+use crate::Payee;
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, String};
 
 fn register_token(env: &Env) -> Address {
     let token_admin = Address::generate(env);

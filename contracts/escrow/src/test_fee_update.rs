@@ -162,7 +162,6 @@ fn test_set_fee_emits_event() {
                     .map(|event| event.old_fee_bps == 100 && event.new_fee_bps == 250)
                     .unwrap_or(false)
             }
-            _ => false,
         });
     assert!(saw_fee_updated, "protocol_fee_updated event should be emitted for the latest update");
 

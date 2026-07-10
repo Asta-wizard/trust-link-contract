@@ -83,7 +83,6 @@ where
                     .map(|event| predicate(&event))
                     .unwrap_or(false)
             }
-            _ => false,
         })
 }
 
@@ -1587,7 +1586,7 @@ fn test_cancel_escrow_state_transitions_correctly() {
 
 #[test]
 fn test_cancel_escrow_pending_escrow_by_seller_succeeds() {
-    let (env, admin, seller, buyer, resolver, token, _fee_collector) = setup_env();
+    let (env, admin, seller, _buyer, resolver, token, _fee_collector) = setup_env();
     let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(&env, &contract_id);
     client.initialize(&admin, &_fee_collector, &0_u32);

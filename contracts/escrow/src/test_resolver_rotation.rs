@@ -7,6 +7,7 @@ use crate::{
     ResolverSet,
 };
 use soroban_sdk::{
+    symbol_short,
     testutils::{Address as _, Events as _, Ledger as _},
     token, Address, BytesN, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val, Vec,
 };
@@ -200,8 +201,8 @@ fn terminal_state_rejected() {
 /// Returns true if the contract emitted a `resolver_rotated` event whose
 /// `old_resolver`/`new_resolver` match the expected addresses.
 fn resolver_rotated_emitted(fx: &Fx, old: &Address, new: &Address) -> bool {
-    let expected_t1 = Symbol::short("Resolver");
-    let expected_t2 = Symbol::short("Rotated");
+    let expected_t1 = symbol_short!("Resolver");
+    let expected_t2 = symbol_short!("Rotated");
     fx.env
         .events()
         .all()
@@ -233,7 +234,6 @@ fn resolver_rotated_emitted(fx: &Fx, old: &Address, new: &Address) -> bool {
                     .map(|ev| &ev.old_resolver == old && &ev.new_resolver == new)
                     .unwrap_or(false)
             }
-            _ => false,
         })
 }
 

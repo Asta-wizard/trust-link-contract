@@ -4,7 +4,7 @@ use crate::test_helpers::{advance_time, create_funded_escrow, setup_contract};
 use crate::{ContractError, DeliveryRecorded, EscrowState, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Events as _, Ledger},
-    vec, Address, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val, Vec,
+    Address, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val, Vec,
 };
 
 fn register_token(env: &Env) -> Address {
@@ -45,7 +45,6 @@ where
                     .map(|event| predicate(&event))
                     .unwrap_or(false)
             }
-            _ => false,
         })
 }
 
@@ -55,7 +54,7 @@ fn test_mark_shipped_transitions_state() {
     env.mock_all_auths();
 
     let token = register_token(&env);
-    let (contract_id, client, admin, _fee_collector) = setup_contract(&env);
+    let (contract_id, client, _admin, _fee_collector) = setup_contract(&env);
 
     let seller = Address::generate(&env);
     let buyer = Address::generate(&env);
@@ -95,7 +94,7 @@ fn test_mark_shipped_rejects_empty_tracking_id() {
     env.mock_all_auths();
 
     let token = register_token(&env);
-    let (_contract_id, client, admin, _fee_collector) = setup_contract(&env);
+    let (_contract_id, client, _admin, _fee_collector) = setup_contract(&env);
 
     let seller = Address::generate(&env);
     let buyer = Address::generate(&env);
@@ -173,7 +172,7 @@ fn test_confirm_delivery_after_mark_shipped() {
     env.mock_all_auths();
 
     let token = register_token(&env);
-    let (contract_id, client, admin, _fee_collector) = setup_contract(&env);
+    let (contract_id, client, _admin, _fee_collector) = setup_contract(&env);
 
     let seller = Address::generate(&env);
     let buyer = Address::generate(&env);
@@ -328,7 +327,7 @@ fn test_record_delivery_rejects_zero_timestamp() {
     // Note: Soroban SDK doesn't allow setting zero timestamp directly in most cases,
     // but we verify the contract behavior by checking that it records what the ledger provides.
     // If the ledger provides a valid timestamp (even at boundary), the contract accepts it.
-    let escrow_before = client.get_escrow(&id);
+    let _escrow_before = client.get_escrow(&id);
     env.ledger().set_timestamp(0);
 
     client.record_delivery(&admin, &id);

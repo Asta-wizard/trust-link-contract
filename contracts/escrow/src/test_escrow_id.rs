@@ -2,6 +2,7 @@
 
 use crate::{Escrow, EscrowCancelled, EscrowClient, Payee};
 use soroban_sdk::{
+    symbol_short,
     testutils::{Address as _, Events as _},
     Address, Env, IntoVal, String, Symbol, TryFromVal, Val, Vec,
 };
@@ -20,8 +21,8 @@ fn setup_env() -> (Env, Address, Address, Address, Address, Address) {
 }
 
 fn has_cancel_event(env: &Env, contract_id: &Address, escrow_id: u64, seller: &Address) -> bool {
-    let expected_t1 = Symbol::short("Escrow");
-    let expected_t2 = Symbol::short("Canceled");
+    let expected_t1 = symbol_short!("Escrow");
+    let expected_t2 = symbol_short!("Canceled");
     env.events()
         .all()
         .filter_by_contract(contract_id)
@@ -54,7 +55,6 @@ fn has_cancel_event(env: &Env, contract_id: &Address, escrow_id: u64, seller: &A
                     .map(|event| event.escrow_id == escrow_id && &event.seller == seller)
                     .unwrap_or(false)
             }
-            _ => false,
         })
 }
 
@@ -197,7 +197,7 @@ fn test_cancelled_escrow_does_not_reset_counter() {
         bps: 10_000,
     });
     let payees_35_val = payees_35.into_val(&env);
-    let id2 = client.create_escrow_8(
+    let _id2 = client.create_escrow_8(
         &payees_35_val,
         &None::<Address>,
         &resolver,
@@ -356,7 +356,7 @@ fn test_multiple_cancellations() {
         bps: 10_000,
     });
     let payees_27_val = payees_27.into_val(&env);
-    let id3 = client.create_escrow_8(
+    let _id3 = client.create_escrow_8(
         &payees_27_val,
         &None::<Address>,
         &resolver,

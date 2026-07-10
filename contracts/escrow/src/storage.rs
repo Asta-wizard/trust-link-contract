@@ -50,8 +50,8 @@ fn extend_ttl_for_key(env: &Env, key: &DataKey) {
 /// - Instance keys store singleton/global configuration and counters.
 /// - Persistent keys store per-escrow data and user indexes that must survive
 ///   contract instance TTL changes.
-// Storage helpers use the unified `DataKey` enum defined in `types.rs`.
-
+///
+/// Storage helpers use the unified `DataKey` enum defined in `types.rs`.
 pub fn write_admin_address(env: &Env, admin: &Address) {
     env.storage().instance().set(&DataKey::Admin, admin);
 }

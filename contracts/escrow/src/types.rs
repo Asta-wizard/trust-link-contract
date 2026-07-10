@@ -92,7 +92,7 @@ impl ResolverSet {
     pub fn count(&self) -> u32 {
         match self {
             ResolverSet::Single(_) => 1,
-            ResolverSet::Multi(m) => m.resolvers.len() as u32,
+            ResolverSet::Multi(m) => m.resolvers.len(),
             ResolverSet::Fallback(_) => 2,
         }
     }

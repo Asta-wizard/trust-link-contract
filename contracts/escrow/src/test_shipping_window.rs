@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::test_helpers::setup_contract;
-use crate::{ContractError, Payee, MAX_SHIPPING_WINDOW, MIN_SHIPPING_WINDOW};
+use crate::{ContractError, Payee, MAX_SHIPPING_WINDOW};
 use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal};
 
 fn register_token(env: &Env) -> Address {

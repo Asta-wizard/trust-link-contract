@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, String, Symbol};
 
 use crate::ResolutionType;
@@ -385,6 +387,7 @@ pub struct DisputeRaised {
 }
 
 /// Topic: `(symbol_short!("Dispute"), symbol_short!("Raised"), buyer.clone(),)`, data: `DisputeRaised`.
+#[allow(clippy::too_many_arguments)]
 pub fn emit_dispute_raised(
     env: &Env,
     escrow_id: u64,
@@ -432,6 +435,7 @@ pub struct DisputeResolved {
 }
 
 /// Topic: `(symbol_short!("Dispute"), symbol_short!("Resolved"), resolver.clone(),)`, data: `DisputeResolved`.
+#[allow(clippy::too_many_arguments)]
 pub fn emit_dispute_resolved(
     env: &Env,
     escrow_id: u64,

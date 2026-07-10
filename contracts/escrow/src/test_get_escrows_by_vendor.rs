@@ -36,7 +36,7 @@ fn test_get_escrows_by_vendor_multiple() {
 
     let vendor_1 = Address::generate(&env);
     let vendor_2 = Address::generate(&env);
-    let buyer = Address::generate(&env);
+    let _buyer = Address::generate(&env);
     let resolver = Address::generate(&env);
 
     // Create escrows for vendor 1
@@ -108,7 +108,7 @@ fn test_vendor_escrow_data_integrity_and_state_transitions() {
     env.mock_all_auths();
 
     let token = register_token(&env);
-    let (_contract_id, client, admin, fee_collector) = setup_contract(&env);
+    let (_contract_id, client, admin, _fee_collector) = setup_contract(&env);
 
     let vendor = Address::generate(&env);
     let buyer = Address::generate(&env);

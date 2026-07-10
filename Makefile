@@ -1,19 +1,22 @@
-.PHONY: help build test fmt clippy bench clean check doc audit
+.PHONY: help build build-wasm test fmt clippy bench clean check doc audit
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build all contracts in release mode
-	cargo build --release
+build: ## Build all contracts (lib target, cross-platform)
+	cargo build --lib --release
 
 build-debug: ## Build all contracts in debug mode
-	cargo build
+	cargo build --lib
 
-test: ## Run all tests
-	cargo test
+build-wasm: ## Build contract wasm for deployment
+	cargo build --target wasm32v1-none --release
+
+test: ## Run all tests (lib target, cross-platform)
+	cargo test --lib
 
 test-verbose: ## Run all tests with output
-	cargo test -- --nocapture
+	cargo test --lib -- --nocapture
 
 fmt: ## Format all code
 	cargo fmt --all
@@ -22,7 +25,7 @@ fmt-check: ## Check formatting without modifying files
 	cargo fmt --all -- --check
 
 clippy: ## Run clippy lints
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy --lib -- -D warnings
 
 bench: ## Run benchmarks (if available)
 	cargo test --release -- --ignored
@@ -40,13 +43,13 @@ audit: ## Run cargo audit for security vulnerabilities
 
 # Contract-specific targets
 build-escrow: ## Build only the escrow contract
-	cargo build --release -p escrow
+	cargo build --lib --release -p escrow
 
 test-escrow: ## Test only the escrow contract
-	cargo test -p escrow
+	cargo test --lib -p escrow
 
 test-escrow-verbose: ## Test escrow contract with output
-	cargo test -p escrow -- --nocapture
+	cargo test --lib -p escrow -- --nocapture
 
 # Bindings
 bindings: ## Generate TypeScript bindings

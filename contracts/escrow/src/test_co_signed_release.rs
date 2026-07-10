@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use crate::test_helpers::{mint_token, setup_contract};
-use crate::{ContractError, DataKey, EscrowState};
+use crate::EscrowState;
 use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal};
 
 fn register_token(env: &Env) -> Address {

@@ -1,9 +1,9 @@
 #![cfg(test)]
 
-use crate::{DisputeResolved, Escrow, EscrowClient, Payee, ResolutionType};
+use crate::{Escrow, EscrowClient, Payee, ResolutionType};
 use soroban_sdk::{
-    testutils::{Address as _, Events as _, Ledger},
-    token, Address, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val, Vec,
+    testutils::{Address as _, Ledger},
+    token, Address, Env, IntoVal, String as SorobanString, Symbol, Vec,
 };
 
 fn setup(env: &Env) -> (Address, Address, Address, Address, Address, Address) {

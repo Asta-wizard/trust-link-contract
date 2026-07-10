@@ -1,7 +1,6 @@
 #![cfg(test)]
 
 use crate::test_helpers::{create_funded_escrow, setup_contract};
-use crate::EscrowState;
 use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
 
 fn register_token(env: &Env) -> Address {

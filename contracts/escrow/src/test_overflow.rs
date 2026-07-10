@@ -280,7 +280,7 @@ fn test_addition_overflow_shipping_window() {
     });
 
     let payees_val = payees_53.into_val(&env);
-    let escrow_id_1 = client.create_escrow(
+    let _escrow_id_1 = client.create_escrow(
         &payees_val,
         &None::<Address>,
         &resolver,

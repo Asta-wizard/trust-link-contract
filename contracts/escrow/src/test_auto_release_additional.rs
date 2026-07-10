@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use crate::test_helpers::{mint_token, setup_contract};
 use crate::{ContractError, Escrow, EscrowClient};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},

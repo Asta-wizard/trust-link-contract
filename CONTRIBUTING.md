@@ -18,15 +18,14 @@ cd trust-link-contract
 # 2. Add the original repo as "upstream" so you can pull updates later
 git remote add upstream https://github.com/JSE-ORG/trust-link-contract.git
 
-# 3. Build the contract (the wasm target is installed automatically
-#    from rust-toolchain.toml the first time you build)
-cargo build --workspace --release
-
-# 4. Run the full test suite — everything should pass on a clean checkout
-cargo test --workspace
+# 3. Use make to build and test (cross-platform)
+make build
+make test
 ```
 
-If `cargo test --workspace` ends with `test result: ok`, your environment is ready. Total time for a first-time contributor with Rust already installed is well under 30 minutes (the first build downloads and compiles dependencies, which takes a few minutes).
+If `make test` ends with `test result: ok`, your environment is ready. Total time for a first-time contributor with Rust already installed is well under 30 minutes (the first build downloads and compiles dependencies, which takes a few minutes).
+
+> **Windows users:** If you see a DLL link error with `cdylib`, switch to a stable MSVC toolchain via `rustup default stable-x86_64-pc-windows-msvc`. The Makefile uses `--lib` flags to avoid this, but bare `cargo build` or `cargo test` without `--lib` may trigger it on GNU/MinGW setups.
 
 ---
 
@@ -123,9 +122,11 @@ git remote add upstream https://github.com/JSE-ORG/trust-link-contract.git
 rustup update stable
 
 # 4. Verify everything builds and tests pass on a clean checkout
-cargo build --workspace --release
-cargo test --workspace
+make build
+make test
 ```
+
+All commands use `--lib` targets, so they work on any platform (Windows, Linux, macOS). The full CI pipeline is also available via `make check` (fmt → clippy → test).
 
 ### Staying Up to Date
 
@@ -201,7 +202,7 @@ Branch naming conventions:
 
 **General Rust**
 - Run `cargo fmt --all` before every commit — CI rejects unformatted code.
-- Run `cargo clippy --workspace -- -D warnings` — fix all warnings, never suppress them without a comment.
+- Run `cargo clippy --lib -- -D warnings` — fix all warnings, never suppress them without a comment.
 - Prefer explicit error returns over `unwrap()` — use `ContractError` variants from `errors.rs`.
 - Comment non-obvious logic. If you had to think about it for more than 30 seconds, leave a comment.
 
@@ -229,33 +230,43 @@ if escrow.state != EscrowState::Funded {
 
 ## Building & Testing
 
-All commands are run from the repository root.
+All commands are run from the repository root. Use the `make` shortcuts or the raw `cargo` commands below.
 
 ```bash
-# Format
-cargo fmt --all
+# Format (check only — no changes)
+make fmt-check
 
 # Lint — zero warnings allowed
-cargo clippy --workspace -- -D warnings
+make clippy
 
-# Standard (native) build
-cargo build --workspace --release
+# Standard (lib) build — cross-platform
+make build
 
 # WASM build (the deployable artifact)
-cargo build --workspace --release --target wasm32v1-none
+make build-wasm
 
 # Run the full test suite — all must pass
-cargo test --workspace
+make test
+
+# Or use raw cargo commands:
+cargo fmt --all
+cargo clippy --lib -- -D warnings
+cargo build --lib --release
+cargo build --target wasm32v1-none --release
+cargo test --lib
 
 # Run a single test or a module
-cargo test test_full_escrow_flow
-cargo test --workspace -- --nocapture   # show println! output
+cargo test --lib test_full_escrow_flow
+cargo test --lib -- --nocapture   # show println! output
+
+# Run all CI checks in sequence
+make check
 
 # Optional: optimized wasm via wasm-opt (requires binaryen)
 ./build.sh
 ```
 
-These four checks — `fmt`, `clippy`, `build`, and `test` — are exactly what the CI pipeline runs, so running them locally before pushing means no CI surprises.
+These checks — `fmt`, `clippy`, `test`, and `build-wasm` — are exactly what the CI pipeline runs, so running them locally before pushing means no CI surprises. All commands use `--lib` targets for cross-platform compatibility.
 
 ---
 
@@ -302,9 +313,9 @@ Run the same checks CI runs:
 
 ```bash
 cargo fmt --all --check
-cargo clippy --workspace -- -D warnings
-cargo build --workspace --release --target wasm32v1-none
-cargo test --workspace
+cargo clippy --lib -- -D warnings
+cargo build --target wasm32v1-none --release
+cargo test --lib
 
 # Sanity-check the WASM binary size hasn't ballooned unexpectedly
 ls -lh target/wasm32v1-none/release/trustlink_escrow.wasm

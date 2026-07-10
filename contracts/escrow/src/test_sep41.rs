@@ -60,7 +60,6 @@ where
                     .map(|event| predicate(&event))
                     .unwrap_or(false)
             }
-            _ => false,
         })
 }
 

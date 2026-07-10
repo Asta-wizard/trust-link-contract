@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{ContractError, DisputeStatus, Escrow, EscrowClient, Payee, ResolutionType};
+use crate::{DisputeStatus, Escrow, EscrowClient, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
     token, Address, BytesN, Env, IntoVal, String, Symbol, Vec,
