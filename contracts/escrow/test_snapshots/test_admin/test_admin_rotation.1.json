@@ -390,7 +390,10 @@
           "v0": {
             "topics": [
               {
-                "symbol": "protocol_fee_updated"
+                "symbol": "ProtoFee"
+              },
+              {
+                "symbol": "Updated"
               }
             ],
             "data": {
@@ -409,6 +412,14 @@
                   },
                   "val": {
                     "u32": 0
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "schema_version"
+                  },
+                  "val": {
+                    "u32": 1
                   }
                 },
                 {

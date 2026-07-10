@@ -7,8 +7,8 @@ use crate::{
     EscrowState, Payee,
 };
 use soroban_sdk::{
-    testutils::{Address as _, Ledger as _, Vec},
-    token, Address, BytesN, Env, String, Symbol,
+    testutils::{Address as _, Ledger as _},
+    token, Address, BytesN, Env, IntoVal, String, Symbol, Vec,
 };
 
 struct Fx {
@@ -45,15 +45,15 @@ fn setup_funded_and_shipped() -> Fx {
         address: seller.clone(),
         bps: 10_000,
     });
-    let escrow_id = client.create_escrow(
-        &payees_24,
+    let payees_24_val = payees_24.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_24_val,
         &None::<Address>,
         &resolver,
         &token_addr,
         &amount,
         &0_u32,
-        &0_u32,
-        &0_u64,
+        &3600_u64,
     );
     token::StellarAssetClient::new(&env, &token_addr).mint(&buyer, &amount);
     env.ledger().set_timestamp(1_700_000_000);

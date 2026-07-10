@@ -1,25 +1,32 @@
 #![cfg(test)]
 
-use soroban_sdk::{
-    testutils::Address as _,
-    Address, Env, Vec,
-};
 use crate::{ContractError, Escrow, EscrowClient, Payee};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, Vec};
 
-fn setup(
-    env: &Env,
-) -> (Address, Address, Address, Address, Address, Address) {
+fn setup(env: &Env) -> (Address, Address, Address, Address, Address, Address) {
     env.mock_all_auths();
     let admin = Address::generate(env);
     let fee_collector = Address::generate(env);
     let seller = Address::generate(env);
     let buyer = Address::generate(env);
     let resolver = Address::generate(env);
-    let token = env.register_stellar_asset_contract_v2(Address::generate(env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(env))
+        .address();
     (admin, fee_collector, seller, buyer, resolver, token)
 }
 
-fn init_client(env: &Env) -> (EscrowClient, Address, Address, Address, Address, Address, Address) {
+fn init_client(
+    env: &Env,
+) -> (
+    EscrowClient,
+    Address,
+    Address,
+    Address,
+    Address,
+    Address,
+    Address,
+) {
     let (admin, fee_collector, seller, buyer, resolver, token) = setup(env);
     let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(env, &contract_id);
@@ -29,7 +36,10 @@ fn init_client(env: &Env) -> (EscrowClient, Address, Address, Address, Address, 
 
 fn make_payees(env: &Env, seller: &Address) -> Vec<Payee> {
     let mut payees = Vec::new(env);
-    payees.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    payees.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
     payees
 }
 
@@ -41,8 +51,17 @@ fn non_strict_any_resolver_accepted() {
     let (client, _admin, _fee_collector, seller, _buyer, resolver, token) = init_client(&env);
 
     let payees = make_payees(&env, &seller);
+    let payees_val = payees.into_val(&env);
     // default: strict = false → any resolver allowed
-    client.create_escrow(&payees, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &3600_u64);
+    client.create_escrow_8(
+        &payees_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &100_i128,
+        &0_u32,
+        &3600_u64,
+    );
 }
 
 #[test]
@@ -142,9 +161,16 @@ fn strict_mode_rejects_unknown_resolver_at_creation() {
 
     client.set_resolver_strict(&admin, &true);
     let payees = make_payees(&env, &seller);
+    let payees_val = payees.into_val(&env);
 
-    let result = client.try_create_escrow(
-        &payees, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &3600_u64,
+    let result = client.try_create_escrow_8(
+        &payees_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &100_i128,
+        &0_u32,
+        &3600_u64,
     );
     assert_eq!(result, Err(Ok(ContractError::UnauthorizedResolver)));
 }
@@ -157,9 +183,16 @@ fn strict_mode_accepts_approved_resolver_at_creation() {
     client.add_approved_resolver(&admin, &resolver);
     client.set_resolver_strict(&admin, &true);
     let payees = make_payees(&env, &seller);
+    let payees_val = payees.into_val(&env);
 
-    client.create_escrow(
-        &payees, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &3600_u64,
+    client.create_escrow_8(
+        &payees_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &100_i128,
+        &0_u32,
+        &3600_u64,
     );
 }
 
@@ -169,8 +202,15 @@ fn non_strict_mode_accepts_any_resolver_even_when_list_empty() {
     let (client, _admin, _fee_collector, seller, _buyer, resolver, token) = init_client(&env);
 
     let payees = make_payees(&env, &seller);
+    let payees_val = payees.into_val(&env);
     // strict = false (default), no approved resolvers — should still work
-    client.create_escrow(
-        &payees, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &3600_u64,
+    client.create_escrow_8(
+        &payees_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &100_i128,
+        &0_u32,
+        &3600_u64,
     );
 }

@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use crate::{ContractError, Escrow, EscrowClient, MIN_ESCROW_AMOUNT};
-use soroban_sdk::{testutils::Address as _, token, Address, Env};
+use crate::{ContractError, Escrow, EscrowClient, Payee, MIN_ESCROW_AMOUNT};
+use soroban_sdk::{testutils::Address as _, token, Address, Env, IntoVal, String, Vec};
 
 fn setup(env: &Env) -> (Address, Address, Address, Address, Address, Address) {
     env.mock_all_auths();
@@ -10,12 +10,23 @@ fn setup(env: &Env) -> (Address, Address, Address, Address, Address, Address) {
     let buyer = Address::generate(env);
     let resolver = Address::generate(env);
     let fee_collector = Address::generate(env);
-    let token = env.register_stellar_asset_contract_v2(Address::generate(env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(env))
+        .address();
     (admin, seller, buyer, resolver, fee_collector, token)
 }
 
 fn mint(env: &Env, token: &Address, to: &Address, amount: i128) {
     token::StellarAssetClient::new(env, token).mint(to, &amount);
+}
+
+fn single_payee(env: &Env, address: &Address) -> Vec<Payee> {
+    let mut payees = Vec::new(env);
+    payees.push_back(Payee {
+        address: address.clone(),
+        bps: 10_000,
+    });
+    payees
 }
 
 /// Verify that creating an escrow with zero amount throws an error.
@@ -28,8 +39,10 @@ fn test_create_escrow_zero_amount_fails() {
     let client = EscrowClient::new(&env, &contract_id);
     client.initialize(&admin, &fee_collector, &0_u32);
 
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
     let result = client.try_create_escrow(
-        &single_payee(&env, &seller),
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -53,8 +66,10 @@ fn test_create_escrow_below_minimum_fails() {
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let below_minimum = MIN_ESCROW_AMOUNT - 1;
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
     let result = client.try_create_escrow(
-        &single_payee(&env, &seller),
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -79,8 +94,10 @@ fn test_create_escrow_at_minimum_succeeds() {
 
     mint(&env, &token, &buyer, MIN_ESCROW_AMOUNT);
 
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
     let result = client.try_create_escrow(
-        &single_payee(&env, &seller),
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -106,8 +123,10 @@ fn test_create_escrow_above_minimum_succeeds() {
     let above_minimum = MIN_ESCROW_AMOUNT + 500_000;
     mint(&env, &token, &buyer, above_minimum);
 
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
     let result = client.try_create_escrow(
-        &single_payee(&env, &seller),
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,

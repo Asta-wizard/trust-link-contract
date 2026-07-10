@@ -1,6 +1,6 @@
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, String, Symbol};
 
-use crate::{ResolutionType, ResolverVote};
+use crate::ResolutionType;
 
 /// Schema version stamped into every event payload.
 ///

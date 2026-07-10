@@ -1,14 +1,14 @@
 #![cfg(test)]
 
 use crate::{Escrow, EscrowClient, Payee};
-use soroban_sdk::{testutils::Address as _, Address, Env, String, Vec};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, String, Vec};
 
 #[test]
 #[should_panic(expected = "HostError: Error(Auth, InvalidAction)")]
 fn test_mark_shipped_auth_fails_immediately() {
     let env = Env::default();
 
-    let contract_id = env.register_contract(None, Escrow);
+    let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(&env, &contract_id);
 
     let unauthorized_caller = Address::generate(&env);
@@ -23,7 +23,7 @@ fn test_mark_shipped_auth_fails_immediately() {
 #[should_panic]
 fn test_unauthorized_pause_fails_early() {
     let env = Env::default();
-    let contract_id = env.register_contract(None, Escrow);
+    let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(&env, &contract_id);
 
     let fake_admin = Address::generate(&env);
@@ -38,7 +38,7 @@ fn test_unauthorized_pause_fails_early() {
 #[should_panic]
 fn test_unauthorized_create_escrow_fails_early() {
     let env = Env::default();
-    let contract_id = env.register_contract(None, Escrow);
+    let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(&env, &contract_id);
 
     let fake_seller = Address::generate(&env);
@@ -51,14 +51,14 @@ fn test_unauthorized_create_escrow_fails_early() {
         address: fake_seller.clone(),
         bps: 10_000,
     });
-    client.create_escrow(
-        &payees_5,
+    let payees_5_val = payees_5.into_val(&env);
+    client.create_escrow_8(
+        &payees_5_val,
         &None::<Address>,
         &resolver,
         &token,
         &1000,
         &100,
-        &0_u32,
         &86400,
     );
 }
@@ -67,7 +67,7 @@ fn test_unauthorized_create_escrow_fails_early() {
 #[should_panic]
 fn test_unauthorized_cancel_escrow_fails_early() {
     let env = Env::default();
-    let contract_id = env.register_contract(None, Escrow);
+    let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(&env, &contract_id);
 
     let fake_caller = Address::generate(&env);

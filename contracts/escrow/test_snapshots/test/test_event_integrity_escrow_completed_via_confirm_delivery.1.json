@@ -59,7 +59,28 @@
               "function_name": "create_escrow",
               "args": [
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  "vec": [
+                    {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "address"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "bps"
+                          },
+                          "val": {
+                            "u32": 10000
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 },
                 "void",
                 {
@@ -75,8 +96,12 @@
                   "u32": 200
                 },
                 {
+                  "u32": 0
+                },
+                {
                   "u64": "3600"
-                }
+                },
+                "void"
               ]
             }
           },
@@ -432,18 +457,54 @@
                   },
                   {
                     "key": {
-                      "symbol": "resolver"
+                      "symbol": "payees"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                      "vec": [
+                        {
+                          "map": [
+                            {
+                              "key": {
+                                "symbol": "address"
+                              },
+                              "val": {
+                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "bps"
+                              },
+                              "val": {
+                                "u32": 10000
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     }
                   },
                   {
                     "key": {
-                      "symbol": "seller"
+                      "symbol": "resolver_fee_bps"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "resolvers"
+                    },
+                    "val": {
+                      "vec": [
+                        {
+                          "symbol": "Single"
+                        },
+                        {
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                        }
+                      ]
                     }
                   },
                   {
@@ -489,6 +550,90 @@
                     "val": {
                       "string": "TRK-EVT-CD"
                     }
+                  }
+                ]
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 120960
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARQG5",
+              "key": {
+                "vec": [
+                  {
+                    "symbol": "EscrowStateHistory"
+                  },
+                  {
+                    "u64": "1"
+                  }
+                ]
+              },
+              "durability": "persistent",
+              "val": {
+                "vec": [
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Pending"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "0"
+                      }
+                    ]
+                  },
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Funded"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "0"
+                      }
+                    ]
+                  },
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Shipped"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "0"
+                      }
+                    ]
+                  },
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Completed"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "172801"
+                      }
+                    ]
                   }
                 ]
               }
@@ -997,14 +1142,14 @@
                 "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARQG5"
               },
               {
-                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
               },
               {
                 "string": "aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPP4V"
               }
             ],
             "data": {
-              "i128": "980"
+              "i128": "20"
             }
           }
         }
@@ -1026,14 +1171,14 @@
                 "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARQG5"
               },
               {
-                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
               },
               {
                 "string": "aaa:GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPP4V"
               }
             ],
             "data": {
-              "i128": "20"
+              "i128": "980"
             }
           }
         }
@@ -1049,7 +1194,13 @@
           "v0": {
             "topics": [
               {
-                "symbol": "escrow_completed"
+                "symbol": "Escrow"
+              },
+              {
+                "symbol": "Completed"
+              },
+              {
+                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
               }
             ],
             "data": {
@@ -1060,14 +1211,6 @@
                   },
                   "val": {
                     "i128": "1000"
-                  }
-                },
-                {
-                  "key": {
-                    "symbol": "completed_at"
-                  },
-                  "val": {
-                    "u64": "172801"
                   }
                 },
                 {
@@ -1088,10 +1231,50 @@
                 },
                 {
                   "key": {
+                    "symbol": "new_state"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Completed"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "prev_state"
+                  },
+                  "val": {
+                    "vec": [
+                      {
+                        "symbol": "Shipped"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "key": {
                     "symbol": "recipient"
                   },
                   "val": {
                     "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "schema_version"
+                  },
+                  "val": {
+                    "u32": 1
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "timestamp"
+                  },
+                  "val": {
+                    "u64": "172801"
                   }
                 }
               ]

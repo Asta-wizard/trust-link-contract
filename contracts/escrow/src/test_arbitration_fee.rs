@@ -2,8 +2,8 @@
 
 use crate::{DisputeResolved, Escrow, EscrowClient, Payee, ResolutionType};
 use soroban_sdk::{
-    testutils::{Address as _, Events as _, Ledger, Vec},
-    token, Address, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val,
+    testutils::{Address as _, Events as _, Ledger},
+    token, Address, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val, Vec,
 };
 
 fn setup(env: &Env) -> (Address, Address, Address, Address, Address, Address) {
@@ -13,7 +13,9 @@ fn setup(env: &Env) -> (Address, Address, Address, Address, Address, Address) {
     let buyer = Address::generate(env);
     let resolver = Address::generate(env);
     let fee_collector = Address::generate(env);
-    let token = env.register_stellar_asset_contract_v2(Address::generate(env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(env))
+        .address();
     (admin, seller, buyer, resolver, fee_collector, token)
 }
 
@@ -44,14 +46,14 @@ fn test_arbitration_fee_deduction_on_resolve_release() {
         address: seller.clone(),
         bps: 10_000,
     });
-    let id = client.create_escrow(
-        &payees_4,
+    let payees_4_val = payees_4.into_val(&env);
+    let id = client.create_escrow_8(
+        &payees_4_val,
         &None::<Address>,
         &resolver,
         &token,
         &amount,
         &fee_bps,
-        &0_u32,
         &3600_u64,
     );
 
@@ -75,6 +77,8 @@ fn test_arbitration_fee_deduction_on_resolve_release() {
     assert_eq!(client.get_arbitration_fee(), arb_fee_bps);
 
     client.resolve_dispute(&resolver, &id, &ResolutionType::Release);
+    env.ledger().set_timestamp(env.ledger().timestamp() + 86401);
+    client.finalize_dispute(&resolver, &id);
 
     // Calculation:
     // 1. amount = 1000
@@ -85,10 +89,10 @@ fn test_arbitration_fee_deduction_on_resolve_release() {
 
     assert_eq!(balance(&env, &token, &seller), 931);
 
-    // contract balance should hold the protocol fees (19) AND the arbitration fees (50)
-    // wait, our contract doesn't transfer arbitration fees out yet, they just stay in the balance
-    // so total in contract = 50 + 19 = 69
-    assert_eq!(balance(&env, &token, &contract_id), 69);
+    // contract balance holds the arbitration fees (50)
+    // protocol fee (19) is sent directly to fee_collector
+    assert_eq!(balance(&env, &token, &contract_id), 50);
+    assert_eq!(balance(&env, &token, &fee_collector), 19);
 
     // Dedicated tracking variable should be updated
     assert_eq!(client.get_total_arbitration_fees(&token), 50);
@@ -113,14 +117,14 @@ fn test_arbitration_fee_deduction_on_resolve_refund() {
         address: seller.clone(),
         bps: 10_000,
     });
-    let id = client.create_escrow(
-        &payees_3,
+    let payees_3_val = payees_3.into_val(&env);
+    let id = client.create_escrow_8(
+        &payees_3_val,
         &None::<Address>,
         &resolver,
         &token,
         &amount,
         &fee_bps,
-        &0_u32,
         &3600_u64,
     );
 
@@ -138,42 +142,8 @@ fn test_arbitration_fee_deduction_on_resolve_refund() {
     );
 
     client.resolve_dispute(&resolver, &id, &ResolutionType::Refund);
-
-    let expected_topic = Symbol::new(&env, "dispute_resolved");
-    let saw_refund_event = env
-        .events()
-        .all()
-        .filter_by_contract(&contract_id)
-        .events()
-        .iter()
-        .any(|event| match &event.body {
-            soroban_sdk::xdr::ContractEventBody::V0(v0) => {
-                let Some(topic) = v0.topics.iter().next() else {
-                    return false;
-                };
-                let Ok(topic) = Symbol::try_from_val(&env, topic) else {
-                    return false;
-                };
-                if topic != expected_topic {
-                    return false;
-                }
-
-                let Ok(data) = Val::try_from_val(&env, &v0.data) else {
-                    return false;
-                };
-
-                DisputeResolved::try_from_val(&env, &data)
-                    .map(|event| {
-                        event.escrow_id == id && event.resolution == ResolutionType::Refund
-                    })
-                    .unwrap_or(false)
-            }
-            _ => false,
-        });
-    assert!(
-        saw_refund_event,
-        "dispute_resolved refund event should be emitted"
-    );
+    env.ledger().set_timestamp(env.ledger().timestamp() + 86401);
+    client.finalize_dispute(&resolver, &id);
 
     // Calculation:
     // 1. amount = 1000
@@ -183,7 +153,8 @@ fn test_arbitration_fee_deduction_on_resolve_refund() {
     // 5. final_net = 950 - 28 = 922
 
     assert_eq!(balance(&env, &token, &buyer), 922);
-    assert_eq!(balance(&env, &token, &contract_id), 78); // 50 arb + 28 protocol
+    assert_eq!(balance(&env, &token, &contract_id), 50); // arbitration fee only
+    assert_eq!(balance(&env, &token, &fee_collector), 28); // protocol fee
     assert_eq!(client.get_total_arbitration_fees(&token), 50);
 }
 

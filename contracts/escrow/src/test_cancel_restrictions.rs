@@ -5,8 +5,8 @@ use soroban_sdk::IntoVal;
 
 use crate::{ContractError, DataKey, Escrow, EscrowClient, EscrowData, EscrowState, Payee};
 use soroban_sdk::{
-    testutils::{Address as _, Ledger as _, Vec},
-    token, Address, BytesN, Env, String, Symbol,
+    testutils::{Address as _, Ledger as _},
+    token, Address, BytesN, Env, String, Symbol, Vec,
 };
 
 struct Fx {
@@ -40,15 +40,16 @@ fn setup() -> Fx {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees_8.into_val(&env);
     let escrow_id = client.create_escrow(
-        &payees_8.into_val(&env),
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token_addr,
         &amount,
         &0_u32,
         &0_u32,
-        &0_u64,
+        &3600_u64,
         &None::<String>,
     );
     token::StellarAssetClient::new(&env, &token_addr).mint(&buyer, &amount);
@@ -164,11 +165,8 @@ fn cancel_fails_in_refunded_state() {
     fx.client
         .raise_dispute(&fx.buyer, &fx.escrow_id, &reason, &description, &evidence);
 
-    fx.client.resolve_dispute(
-        &fx.resolver,
-        &fx.escrow_id,
-        &crate::ResolutionType::Refund,
-    );
+    fx.client
+        .resolve_dispute(&fx.resolver, &fx.escrow_id, &crate::ResolutionType::Refund);
 
     assert_eq!(
         fx.client.try_cancel_escrow(&fx.seller, &fx.escrow_id),
@@ -188,13 +186,12 @@ fn cancel_fails_in_canceled_state() {
 }
 
 #[test]
-fn buyer_cancel_fails_in_funded_state() {
+fn buyer_cancel_succeeds_in_funded_state() {
     let fx = setup();
     fx.client.fund_escrow(&fx.escrow_id, &fx.buyer);
-    assert_eq!(
-        fx.client.try_cancel_escrow(&fx.buyer, &fx.escrow_id),
-        Err(Ok(ContractError::InvalidState)),
-    );
+    fx.client.cancel_escrow(&fx.buyer, &fx.escrow_id);
+    let escrow = fx.client.get_escrow(&fx.escrow_id);
+    assert_eq!(escrow.state, EscrowState::Refunded);
 }
 
 #[test]
@@ -262,11 +259,8 @@ fn buyer_cancel_fails_in_refunded_state() {
     fx.client
         .raise_dispute(&fx.buyer, &fx.escrow_id, &reason, &description, &evidence);
 
-    fx.client.resolve_dispute(
-        &fx.resolver,
-        &fx.escrow_id,
-        &crate::ResolutionType::Refund,
-    );
+    fx.client
+        .resolve_dispute(&fx.resolver, &fx.escrow_id, &crate::ResolutionType::Refund);
 
     assert_eq!(
         fx.client.try_cancel_escrow(&fx.buyer, &fx.escrow_id),

@@ -1,12 +1,13 @@
 #![cfg(test)]
 
 use crate::test_helpers::{create_funded_escrow, setup_contract};
-use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
 use crate::EscrowState;
+use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
 
 fn register_token(env: &Env) -> Address {
     let token_admin = Address::generate(env);
-    env.register_stellar_asset_contract_v2(token_admin).address()
+    env.register_stellar_asset_contract_v2(token_admin)
+        .address()
 }
 
 #[test]
@@ -22,9 +23,15 @@ fn test_get_escrows_by_ids_order_and_missing() {
     let resolver = Address::generate(&env);
 
     // Create three funded escrows
-    let id1 = create_funded_escrow(&env, &client, &seller, &buyer, &resolver, &token, 100, 0, 3600);
-    let id2 = create_funded_escrow(&env, &client, &seller, &buyer, &resolver, &token, 200, 0, 3600);
-    let id3 = create_funded_escrow(&env, &client, &seller, &buyer, &resolver, &token, 300, 0, 3600);
+    let id1 = create_funded_escrow(
+        &env, &client, &seller, &buyer, &resolver, &token, 100, 0, 3600,
+    );
+    let id2 = create_funded_escrow(
+        &env, &client, &seller, &buyer, &resolver, &token, 200, 0, 3600,
+    );
+    let id3 = create_funded_escrow(
+        &env, &client, &seller, &buyer, &resolver, &token, 300, 0, 3600,
+    );
 
     // Build query vector: [id2, missing(9999), id1, id3]
     let mut ids = Vec::new(&env);

@@ -1,8 +1,11 @@
 #![cfg(test)]
 
-use crate::{Escrow, EscrowClient, ContractError};
-use soroban_sdk::{testutils::{Address as _, Ledger as _}, token, Address, Env, String as SorobanString};
-use crate::test_helpers::{setup_contract, mint_token};
+use crate::test_helpers::{mint_token, setup_contract};
+use crate::{ContractError, Escrow, EscrowClient};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger as _},
+    token, Address, Env, IntoVal, String as SorobanString,
+};
 
 // Test: calling auto_release when no delivery recorded should fail (InvalidState)
 #[test]
@@ -24,15 +27,29 @@ fn auto_release_without_delivery_is_rejected() {
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let amount: i128 = 1000;
-    let escrow_id = client.create_escrow(&seller, &resolver, &token_addr, &amount, &0_u32, &0_u64);
+    let seller_val = seller.clone().into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &seller_val,
+        &None::<Address>,
+        &resolver,
+        &token_addr,
+        &amount,
+        &0_u32,
+        &3600_u64,
+    );
     token::StellarAssetClient::new(&env, &token_addr).mint(&buyer, &amount);
     client.fund_escrow(&escrow_id, &buyer);
-    client.mark_shipped(&seller, &escrow_id, &SorobanString::from_str(&env, "TRACK-X"));
+    env.ledger().set_timestamp(env.ledger().timestamp() + 3601);
+    client.mark_shipped(
+        &seller,
+        &escrow_id,
+        &SorobanString::from_str(&env, "TRACK-X"),
+    );
 
-    // Do NOT call record_delivery. Now auto_release must reject with InvalidState.
+    // Do NOT call record_delivery. Now auto_release must reject with DeliveryNotRecorded.
     assert_eq!(
         client.try_auto_release(&escrow_id),
-        Err(Ok(ContractError::InvalidState)),
+        Err(Ok(ContractError::DeliveryNotRecorded)),
     );
 }
 
@@ -56,13 +73,22 @@ fn auto_release_called_while_funded_is_rejected() {
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let amount: i128 = 500;
-    let escrow_id = client.create_escrow(&seller, &resolver, &token_addr, &amount, &0_u32, &0_u64);
+    let seller_val = seller.clone().into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &seller_val,
+        &None::<Address>,
+        &resolver,
+        &token_addr,
+        &amount,
+        &0_u32,
+        &3600_u64,
+    );
     token::StellarAssetClient::new(&env, &token_addr).mint(&buyer, &amount);
     client.fund_escrow(&escrow_id, &buyer);
 
-    // Escrow is Funded but not Shipped - auto_release should reject with InvalidState.
+    // Escrow is Funded but not Shipped - auto_release should reject with DeliveryBeforeDisputeWindow.
     assert_eq!(
         client.try_auto_release(&escrow_id),
-        Err(Ok(ContractError::InvalidState)),
+        Err(Ok(ContractError::DeliveryBeforeDisputeWindow)),
     );
 }

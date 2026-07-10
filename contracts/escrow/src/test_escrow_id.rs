@@ -3,7 +3,7 @@
 use crate::{Escrow, EscrowCancelled, EscrowClient, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Events as _},
-    Address, Env, IntoVal, Symbol, TryFromVal, Val, Vec,
+    Address, Env, IntoVal, String, Symbol, TryFromVal, Val, Vec,
 };
 
 fn setup_env() -> (Env, Address, Address, Address, Address, Address) {
@@ -20,7 +20,8 @@ fn setup_env() -> (Env, Address, Address, Address, Address, Address) {
 }
 
 fn has_cancel_event(env: &Env, contract_id: &Address, escrow_id: u64, seller: &Address) -> bool {
-    let expected_topic = Symbol::new(env, "escrow_cancelled");
+    let expected_t1 = Symbol::short("Escrow");
+    let expected_t2 = Symbol::short("Canceled");
     env.events()
         .all()
         .filter_by_contract(contract_id)
@@ -28,13 +29,20 @@ fn has_cancel_event(env: &Env, contract_id: &Address, escrow_id: u64, seller: &A
         .iter()
         .any(|event| match &event.body {
             soroban_sdk::xdr::ContractEventBody::V0(v0) => {
-                let Some(topic) = v0.topics.iter().next() else {
+                let mut topics = v0.topics.iter();
+                let Some(t1) = topics.next() else {
                     return false;
                 };
-                let Ok(topic) = Symbol::try_from_val(env, topic) else {
+                let Some(t2) = topics.next() else {
                     return false;
                 };
-                if topic != expected_topic {
+                let Ok(sym1) = Symbol::try_from_val(env, t1) else {
+                    return false;
+                };
+                let Ok(sym2) = Symbol::try_from_val(env, t2) else {
+                    return false;
+                };
+                if sym1 != expected_t1 || sym2 != expected_t2 {
                     return false;
                 }
 
@@ -65,13 +73,13 @@ fn test_escrow_ids_monotonic_and_unique() {
             address: seller.clone(),
             bps: 10_000,
         });
+        let payees_val = payees_41.into_val(&env);
         let id = client.create_escrow_8(
-            &payees_41,
+            &payees_val,
             &None::<Address>,
             &resolver,
             &token,
             &100_i128,
-            &0_u32,
             &0_u32,
             &3600_u64,
         );
@@ -86,8 +94,9 @@ fn test_escrow_ids_monotonic_and_unique() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees_40.into_val(&env);
     let next_id = client2.create_escrow(
-        &payees_40,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -95,6 +104,7 @@ fn test_escrow_ids_monotonic_and_unique() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
     assert_eq!(next_id, 11);
 }
@@ -112,13 +122,13 @@ fn test_escrow_ids_increment_sequentially() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_39_val = payees_39.into_val(&env);
     let id1 = client.create_escrow_8(
-        &payees_39,
+        &payees_39_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -127,13 +137,13 @@ fn test_escrow_ids_increment_sequentially() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_38_val = payees_38.into_val(&env);
     let id2 = client.create_escrow_8(
-        &payees_38,
+        &payees_38_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -142,13 +152,13 @@ fn test_escrow_ids_increment_sequentially() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_37_val = payees_37.into_val(&env);
     let id3 = client.create_escrow_8(
-        &payees_37,
+        &payees_37_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -171,13 +181,13 @@ fn test_cancelled_escrow_does_not_reset_counter() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_36_val = payees_36.into_val(&env);
     let id1 = client.create_escrow_8(
-        &payees_36,
+        &payees_36_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -186,13 +196,13 @@ fn test_cancelled_escrow_does_not_reset_counter() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_35_val = payees_35.into_val(&env);
     let id2 = client.create_escrow_8(
-        &payees_35,
+        &payees_35_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -207,13 +217,13 @@ fn test_cancelled_escrow_does_not_reset_counter() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_34_val = payees_34.into_val(&env);
     let next_id = client.create_escrow_8(
-        &payees_34,
+        &payees_34_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -233,13 +243,13 @@ fn test_escrow_counter_does_not_skip_after_cancellation() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_33_val = payees_33.into_val(&env);
     let id1 = client.create_escrow_8(
-        &payees_33,
+        &payees_33_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -248,13 +258,13 @@ fn test_escrow_counter_does_not_skip_after_cancellation() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_32_val = payees_32.into_val(&env);
     let id2 = client.create_escrow_8(
-        &payees_32,
+        &payees_32_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -266,13 +276,13 @@ fn test_escrow_counter_does_not_skip_after_cancellation() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_31_val = payees_31.into_val(&env);
     let id3 = client.create_escrow_8(
-        &payees_31,
+        &payees_31_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -281,13 +291,13 @@ fn test_escrow_counter_does_not_skip_after_cancellation() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_30_val = payees_30.into_val(&env);
     let id4 = client.create_escrow_8(
-        &payees_30,
+        &payees_30_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -315,13 +325,13 @@ fn test_multiple_cancellations() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_29_val = payees_29.into_val(&env);
     let id1 = client.create_escrow_8(
-        &payees_29,
+        &payees_29_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -330,13 +340,13 @@ fn test_multiple_cancellations() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_28_val = payees_28.into_val(&env);
     let id2 = client.create_escrow_8(
-        &payees_28,
+        &payees_28_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -345,13 +355,13 @@ fn test_multiple_cancellations() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_27_val = payees_27.into_val(&env);
     let id3 = client.create_escrow_8(
-        &payees_27,
+        &payees_27_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -364,13 +374,13 @@ fn test_multiple_cancellations() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_26_val = payees_26.into_val(&env);
     let next_id = client.create_escrow_8(
-        &payees_26,
+        &payees_26_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );

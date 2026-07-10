@@ -2,8 +2,8 @@
 
 use crate::{ContractError, Escrow, EscrowClient, EscrowState, Payee, ResolutionType};
 use soroban_sdk::{
-    testutils::{Address as _, Ledger as _, Vec},
-    token, Address, Env, String as SorobanString, Symbol,
+    testutils::{Address as _, Ledger as _},
+    token, Address, Env, IntoVal, String as SorobanString, Symbol, Vec,
 };
 
 const DISPUTE_WINDOW: u64 = 172_800;
@@ -19,7 +19,9 @@ fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address) {
     let token_admin = Address::generate(&env);
     let fee_collector = Address::generate(&env);
 
-    let token_address = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_address = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
     let contract_id = env.register(Escrow, ());
     {
         let client = EscrowClient::new(&env, &contract_id);
@@ -53,10 +55,11 @@ fn test_create_escrow_blocked_when_paused() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees.into_val(&env);
 
     // Updated with 9 arguments
     let result = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -78,18 +81,17 @@ fn test_fund_escrow_blocked_when_paused() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_64_val = payees_64.into_val(&env);
 
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_64,
+        &payees_64_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     client.pause_contract(&admin);
     let result = client.try_fund_escrow(&id, &buyer);
@@ -106,17 +108,16 @@ fn test_pause_blocks_mutations_but_keeps_views_available() {
         bps: 10_000,
     });
 
+    let payees_63_val = payees_63.into_val(&env);
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_63,
+        &payees_63_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     mint_tokens(&env, &token, &buyer, 100);
     client.fund_escrow(&id, &buyer);
@@ -139,17 +140,16 @@ fn test_confirm_delivery_blocked_when_paused() {
         bps: 10_000,
     });
 
+    let payees_62_val = payees_62.into_val(&env);
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_62,
+        &payees_62_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     mint_tokens(&env, &token, &buyer, 100);
     client.fund_escrow(&id, &buyer);
@@ -169,17 +169,16 @@ fn test_raise_dispute_blocked_when_paused() {
         bps: 10_000,
     });
 
+    let payees_61_val = payees_61.into_val(&env);
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_61,
+        &payees_61_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     mint_tokens(&env, &token, &buyer, 100);
     client.fund_escrow(&id, &buyer);
@@ -206,17 +205,16 @@ fn test_resolve_dispute_blocked_when_paused() {
         bps: 10_000,
     });
 
+    let payees_60_val = payees_60.into_val(&env);
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_60,
+        &payees_60_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     mint_tokens(&env, &token, &buyer, 100);
     client.fund_escrow(&id, &buyer);
@@ -244,17 +242,16 @@ fn test_auto_release_blocked_when_paused() {
         bps: 10_000,
     });
 
+    let payees_59_val = payees_59.into_val(&env);
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_59,
+        &payees_59_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &1_u64,
-        &None::<SorobanString>,
     );
     mint_tokens(&env, &token, &buyer, 100);
     client.fund_escrow(&id, &buyer);
@@ -285,17 +282,16 @@ fn test_read_only_views_work_while_paused() {
         bps: 10_000,
     });
 
+    let payees_58_val = payees_58.into_val(&env);
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_58,
+        &payees_58_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     client.pause_contract(&admin);
     let _ = client.get_escrow(&id);
@@ -329,17 +325,16 @@ fn test_unpause_resumes_operations() {
         bps: 10_000,
     });
 
+    let payees_57_val = payees_57.into_val(&env);
     // Updated with 9 arguments
     let id = client.create_escrow_8(
-        &payees_57,
+        &payees_57_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &0_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     mint_tokens(&env, &token, &buyer, 100);
     client.fund_escrow(&id, &buyer);
@@ -352,17 +347,16 @@ fn test_unpause_resumes_operations() {
         bps: 10_000,
     });
 
+    let payees_56_val = payees_56.into_val(&env);
     // Updated with 9 arguments
     let escrow_id = client.create_escrow_8(
-        &payees_56,
+        &payees_56_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
         &100_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     client.pause_contract(&admin);
 
@@ -380,11 +374,12 @@ fn test_unpause_resumes_operations() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let single_payee_val = single_payee.into_val(&env);
 
     // Updated internal parameter shape assertions with 9 parameters
     assert!(client
         .try_create_escrow(
-            &single_payee,
+            &single_payee_val,
             &None::<Address>,
             &resolver,
             &token,
@@ -420,17 +415,16 @@ fn test_unpause_resumes_operations() {
         bps: 10_000,
     });
 
+    let payees_55_val = payees_55.into_val(&env);
     // Updated with 9 arguments
     let second_id = client.create_escrow_8(
-        &payees_55,
+        &payees_55_val,
         &None::<Address>,
         &resolver,
         &token,
         &50_i128,
         &50_u32,
-        &0_u32,
         &3600_u64,
-        &None::<SorobanString>,
     );
     assert_eq!(second_id, 3);
 }

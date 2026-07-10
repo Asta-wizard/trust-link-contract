@@ -1,12 +1,12 @@
 #![cfg(test)]
 //! Verifies the `EscrowState` lifecycle and the `transition_state` validity
-//! matrix (#9): all 7 states exist, every legal edge is accepted, every illegal
+//! matrix (#9): all 10 states exist, every legal edge is accepted, every illegal
 //! edge is rejected with `InvalidStateTransition`, and self-loops are illegal.
 
-use crate::{Payee, transition_state, ContractError, EscrowState};
+use crate::{transition_state, ContractError, EscrowState, Payee};
 
 #[test]
-fn all_seven_states_are_defined() {
+fn all_ten_states_are_defined() {
     // Pattern-match exhaustively so adding/removing a variant breaks the test.
     let states = [
         EscrowState::Pending,
@@ -14,10 +14,13 @@ fn all_seven_states_are_defined() {
         EscrowState::Shipped,
         EscrowState::Completed,
         EscrowState::Disputed,
+        EscrowState::RefundRequested,
         EscrowState::Refunded,
         EscrowState::Canceled,
+        EscrowState::PendingFinalization,
+        EscrowState::Expired,
     ];
-    assert_eq!(states.len(), 7);
+    assert_eq!(states.len(), 10);
 }
 
 #[test]
@@ -26,13 +29,19 @@ fn legal_transitions_are_accepted() {
         (EscrowState::Pending, EscrowState::Funded),
         (EscrowState::Pending, EscrowState::Canceled),
         (EscrowState::Funded, EscrowState::Shipped),
+        (EscrowState::Funded, EscrowState::Disputed),
         (EscrowState::Funded, EscrowState::Refunded),
-        (EscrowState::Funded, EscrowState::Canceled),
+        (EscrowState::Funded, EscrowState::RefundRequested),
+        (EscrowState::RefundRequested, EscrowState::Refunded),
         (EscrowState::Shipped, EscrowState::Completed),
         (EscrowState::Shipped, EscrowState::Disputed),
         (EscrowState::Shipped, EscrowState::Refunded),
         (EscrowState::Disputed, EscrowState::Completed),
         (EscrowState::Disputed, EscrowState::Refunded),
+        (EscrowState::Disputed, EscrowState::PendingFinalization),
+        (EscrowState::PendingFinalization, EscrowState::Completed),
+        (EscrowState::PendingFinalization, EscrowState::Refunded),
+        (EscrowState::PendingFinalization, EscrowState::Disputed),
     ];
     for (from, to) in legal {
         assert!(
@@ -61,6 +70,13 @@ fn illegal_transitions_are_rejected() {
         (EscrowState::Pending, EscrowState::Disputed),
         // Cannot skip shipment.
         (EscrowState::Funded, EscrowState::Completed),
+        // Funded→Canceled is not a legal state transition.
+        (EscrowState::Funded, EscrowState::Canceled),
+        // PendingFinalization→Shipped is not legal.
+        (EscrowState::PendingFinalization, EscrowState::Shipped),
+        // Expired has no outgoing transitions.
+        (EscrowState::Expired, EscrowState::Pending),
+        (EscrowState::Expired, EscrowState::Funded),
     ];
     for (from, to) in illegal {
         assert_eq!(
@@ -82,8 +98,11 @@ fn self_loops_are_illegal() {
         EscrowState::Shipped,
         EscrowState::Completed,
         EscrowState::Disputed,
+        EscrowState::RefundRequested,
         EscrowState::Refunded,
         EscrowState::Canceled,
+        EscrowState::PendingFinalization,
+        EscrowState::Expired,
     ] {
         assert_eq!(
             transition_state(&s, &s),

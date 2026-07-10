@@ -57,7 +57,8 @@ fn test_multicall_single_call_fund_escrow() {
     // Create the escrow normally – we don't batch this step because create
     // returns a non-unit value we need to capture.
     let payees = single_payee(&env, &seller);
-    let id = client.create_escrow(&payees, &Some(buyer.clone()), &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
+    let payees_val = payees.into_val(&env);
+    let id = client.create_escrow_8(&payees_val, &Some(buyer.clone()), &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
 
     // Mint tokens for the buyer.
     mint(&env, &token, &buyer, 1_000);
@@ -91,7 +92,8 @@ fn test_multicall_two_get_escrow_calls() {
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let payees = single_payee(&env, &seller);
-    let id = client.create_escrow(&payees, &None::<Address>, &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
+    let payees_val = payees.into_val(&env);
+    let id = client.create_escrow_8(&payees_val, &None::<Address>, &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
 
     let mut args1: Vec<soroban_sdk::Val> = Vec::new(&env);
     args1.push_back(id.into_val(&env));
@@ -117,7 +119,8 @@ fn test_multicall_blocked_when_paused() {
 
     // Create an escrow so there is something to call on.
     let payees = single_payee(&env, &seller);
-    let id = client.create_escrow(&payees, &None::<Address>, &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
+    let payees_val = payees.into_val(&env);
+    let id = client.create_escrow_8(&payees_val, &None::<Address>, &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
 
     client.pause_contract(&admin);
 
@@ -157,7 +160,8 @@ fn test_multicall_mark_shipped_then_get_escrow() {
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let payees = single_payee(&env, &seller);
-    let id = client.create_escrow(&payees, &Some(buyer.clone()), &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
+    let payees_val = payees.into_val(&env);
+    let id = client.create_escrow_8(&payees_val, &Some(buyer.clone()), &resolver, &token, &1_000_i128, &0_u32, &0_u32, &3600_u64);
     mint(&env, &token, &buyer, 1_000);
     client.fund_escrow(&id, &buyer);
 

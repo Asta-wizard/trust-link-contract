@@ -4,12 +4,13 @@ use crate::test_helpers::{advance_time, create_funded_escrow, setup_contract};
 use crate::{ContractError, DeliveryRecorded, EscrowState, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Events as _, Ledger},
-    vec, Address, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val,
+    vec, Address, Env, IntoVal, String as SorobanString, Symbol, TryFromVal, Val, Vec,
 };
 
 fn register_token(env: &Env) -> Address {
     let token_admin = Address::generate(env);
-    env.register_stellar_asset_contract_v2(token_admin).address()
+    env.register_stellar_asset_contract_v2(token_admin)
+        .address()
 }
 
 fn has_event<T, F>(env: &Env, contract_id: &Address, topic: &str, predicate: F) -> bool
@@ -70,12 +71,12 @@ fn test_mark_shipped_transitions_state() {
     assert!(has_event::<crate::EscrowShipped, _>(
         &env,
         &contract_id,
-        "escrow_shipped",
+        "Escrow",
         |event| {
             event.escrow_id == id
                 && event.seller == seller
                 && event.tracking_id == SorobanString::from_str(&env, "TRACK-001")
-                && event.shipped_at == expected_ts
+                && event.timestamp == expected_ts
         }
     ));
 
@@ -137,7 +138,7 @@ fn test_record_delivery_sets_timestamp() {
     assert!(has_event::<DeliveryRecorded, _>(
         &env,
         &contract_id,
-        "delivery_recorded",
+        "Escrow",
         |event| { event.escrow_id == id && event.delivered_at == expected_ts }
     ));
 
@@ -191,7 +192,7 @@ fn test_confirm_delivery_after_mark_shipped() {
     assert!(has_event::<crate::EscrowCompleted, _>(
         &env,
         &contract_id,
-        "escrow_completed",
+        "Escrow",
         |event| { event.escrow_id == id && event.recipient == seller }
     ));
 
@@ -292,7 +293,7 @@ fn test_record_delivery_timestamp_matches_ledger_timestamp() {
     assert!(has_event::<DeliveryRecorded, _>(
         &env,
         &contract_id,
-        "delivery_recorded",
+        "Escrow",
         |event| { event.escrow_id == id && event.delivered_at == expected_ts }
     ));
 
@@ -424,8 +425,9 @@ fn test_confirm_delivery_from_pending_state_fails() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees_16.into_val(&env);
     let id = client.create_escrow(
-        &payees_16,
+        &payees_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
@@ -433,10 +435,11 @@ fn test_confirm_delivery_from_pending_state_fails() {
         &100_u32,
         &0_u32,
         &3600_u64,
+        &None::<SorobanString>,
     );
 
     let res = client.try_confirm_delivery(&buyer, &id);
-    assert_eq!(res, Err(Ok(ContractError::InvalidState)));
+    assert_eq!(res, Err(Ok(ContractError::InvalidStateTransition)));
 }
 
 #[test]
@@ -456,7 +459,7 @@ fn test_confirm_delivery_from_funded_state_fails() {
     );
 
     let res = client.try_confirm_delivery(&buyer, &id);
-    assert_eq!(res, Err(Ok(ContractError::InvalidState)));
+    assert_eq!(res, Err(Ok(ContractError::InvalidStateTransition)));
 }
 
 #[test]
@@ -484,7 +487,7 @@ fn test_confirm_delivery_from_disputed_state_fails() {
     );
 
     let res = client.try_confirm_delivery(&buyer, &id);
-    assert_eq!(res, Err(Ok(ContractError::InvalidState)));
+    assert_eq!(res, Err(Ok(ContractError::InvalidStateTransition)));
 }
 
 #[test]
@@ -505,8 +508,9 @@ fn test_confirm_delivery_from_canceled_state_fails() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees_15.into_val(&env);
     let id = client.create_escrow(
-        &payees_15,
+        &payees_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
@@ -514,12 +518,13 @@ fn test_confirm_delivery_from_canceled_state_fails() {
         &100_u32,
         &0_u32,
         &3600_u64,
+        &None::<SorobanString>,
     );
 
     client.cancel_escrow(&seller, &id);
 
     let res = client.try_confirm_delivery(&buyer, &id);
-    assert_eq!(res, Err(Ok(ContractError::InvalidState)));
+    assert_eq!(res, Err(Ok(ContractError::InvalidStateTransition)));
 }
 
 #[test]
@@ -546,5 +551,5 @@ fn test_confirm_delivery_from_completed_state_fails() {
     client.confirm_delivery(&buyer, &id);
 
     let res = client.try_confirm_delivery(&buyer, &id);
-    assert_eq!(res, Err(Ok(ContractError::InvalidState)));
+    assert_eq!(res, Err(Ok(ContractError::InvalidStateTransition)));
 }

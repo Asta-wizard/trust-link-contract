@@ -59,7 +59,28 @@
               "function_name": "create_escrow",
               "args": [
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  "vec": [
+                    {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "address"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "bps"
+                          },
+                          "val": {
+                            "u32": 10000
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 },
                 "void",
                 {
@@ -75,8 +96,12 @@
                   "u32": 300
                 },
                 {
-                  "u64": "18446744073709551615"
-                }
+                  "u32": 0
+                },
+                {
+                  "u64": "63072000"
+                },
+                "void"
               ]
             }
           },
@@ -94,7 +119,28 @@
               "function_name": "create_escrow",
               "args": [
                 {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                  "vec": [
+                    {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "address"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "bps"
+                          },
+                          "val": {
+                            "u32": 10000
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 },
                 "void",
                 {
@@ -110,8 +156,12 @@
                   "u32": 300
                 },
                 {
-                  "u64": "18446744073709551615"
-                }
+                  "u32": 0
+                },
+                {
+                  "u64": "63072000"
+                },
+                "void"
               ]
             }
           },
@@ -465,18 +515,54 @@
                   },
                   {
                     "key": {
-                      "symbol": "resolver"
+                      "symbol": "payees"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      "vec": [
+                        {
+                          "map": [
+                            {
+                              "key": {
+                                "symbol": "address"
+                              },
+                              "val": {
+                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "bps"
+                              },
+                              "val": {
+                                "u32": 10000
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     }
                   },
                   {
                     "key": {
-                      "symbol": "seller"
+                      "symbol": "resolver_fee_bps"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "resolvers"
+                    },
+                    "val": {
+                      "vec": [
+                        {
+                          "symbol": "Single"
+                        },
+                        {
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                        }
+                      ]
                     }
                   },
                   {
@@ -492,7 +578,7 @@
                       "symbol": "shipping_window"
                     },
                     "val": {
-                      "u64": "18446744073709551615"
+                      "u64": "63072000"
                     }
                   },
                   {
@@ -605,18 +691,54 @@
                   },
                   {
                     "key": {
-                      "symbol": "resolver"
+                      "symbol": "payees"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      "vec": [
+                        {
+                          "map": [
+                            {
+                              "key": {
+                                "symbol": "address"
+                              },
+                              "val": {
+                                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "bps"
+                              },
+                              "val": {
+                                "u32": 10000
+                              }
+                            }
+                          ]
+                        }
+                      ]
                     }
                   },
                   {
                     "key": {
-                      "symbol": "seller"
+                      "symbol": "resolver_fee_bps"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "resolvers"
+                    },
+                    "val": {
+                      "vec": [
+                        {
+                          "symbol": "Single"
+                        },
+                        {
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                        }
+                      ]
                     }
                   },
                   {
@@ -632,7 +754,7 @@
                       "symbol": "shipping_window"
                     },
                     "val": {
-                      "u64": "18446744073709551615"
+                      "u64": "63072000"
                     }
                   },
                   {
@@ -662,6 +784,118 @@
                     "val": {
                       "string": "TRACK-OVERFLOW"
                     }
+                  }
+                ]
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 120960
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM",
+              "key": {
+                "vec": [
+                  {
+                    "symbol": "EscrowStateHistory"
+                  },
+                  {
+                    "u64": "1"
+                  }
+                ]
+              },
+              "durability": "persistent",
+              "val": {
+                "vec": [
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Pending"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "0"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 120960
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM",
+              "key": {
+                "vec": [
+                  {
+                    "symbol": "EscrowStateHistory"
+                  },
+                  {
+                    "u64": "2"
+                  }
+                ]
+              },
+              "durability": "persistent",
+              "val": {
+                "vec": [
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Pending"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "1000"
+                      }
+                    ]
+                  },
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Funded"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "1000"
+                      }
+                    ]
+                  },
+                  {
+                    "vec": [
+                      {
+                        "vec": [
+                          {
+                            "symbol": "Shipped"
+                          }
+                        ]
+                      },
+                      {
+                        "u64": "1000"
+                      }
+                    ]
                   }
                 ]
               }

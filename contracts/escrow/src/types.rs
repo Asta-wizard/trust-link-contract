@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, BytesN, Env, String, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, BytesN, String, Symbol, Vec};
 
 /// Single unified storage key enum for all contract storage entries.
 ///
@@ -41,6 +41,15 @@ pub enum DataKey {
     TotalCompleted,
     TotalRefunded,
     EvidenceLog(u64),
+    BasketTokens(u64),
+}
+
+/// A token-amount pair for multi-token basket escrows.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TokenEntry {
+    pub token: Address,
+    pub amount: i128,
 }
 
 #[contracttype]
@@ -99,7 +108,7 @@ impl ResolverSet {
                     }
                 }
                 false
-            },
+            }
             ResolverSet::Fallback(f) => addr == &f.primary || addr == &f.backup,
         }
     }
@@ -133,6 +142,37 @@ pub struct DisputeData {
     pub status: DisputeStatus,
     pub disputed_at: u64,
     pub tracking_id: Option<String>,
+    /// Resolution code: 0 = not resolved, 1 = Release, 2 = Refund
+    pub resolution: u32,
+    /// Which address made the resolution (the resolver who triggered finalization)
+    pub resolved_by: Option<Address>,
+    /// Number of times this dispute has been appealed
+    pub appeal_count: u32,
+    /// Timestamp when the resolution was made
+    pub resolved_at: u64,
+}
+
+impl DisputeData {
+    pub fn set_resolution(&mut self, r: ResolutionType) {
+        self.resolution = match r {
+            ResolutionType::Release => 1,
+            ResolutionType::Refund => 2,
+        };
+    }
+
+    pub fn get_resolution(&self) -> Option<ResolutionType> {
+        match self.resolution {
+            1 => Some(ResolutionType::Release),
+            2 => Some(ResolutionType::Refund),
+            _ => None,
+        }
+    }
+
+    pub fn clear_resolution(&mut self) {
+        self.resolution = 0;
+        self.resolved_by = None;
+        self.resolved_at = 0;
+    }
 }
 
 #[contracttype]
@@ -174,8 +214,6 @@ pub struct ContractConfig {
 pub struct EscrowData {
     pub payees: Vec<Payee>,
     pub buyer: Option<Address>,
-    pub resolver_set: ResolverSet,
-    // Change this from Address to ResolverSet
     pub resolvers: ResolverSet,
     pub token: Address,
     pub amount: i128,

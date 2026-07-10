@@ -15,8 +15,8 @@
 
 use crate::{ContractError, Escrow, EscrowClient, Payee, ResolutionType};
 use soroban_sdk::{
-    testutils::Address as _,
-    token, Address, BytesN, Env, String as SorobanString, Symbol, Vec,
+    testutils::Address as _, token, Address, BytesN, Env, IntoVal, String as SorobanString, Symbol,
+    Vec,
 };
 
 // ─── harness ────────────────────────────────────────────────────────────────
@@ -35,9 +35,16 @@ fn setup(env: &Env) -> Ctx {
     let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(env, &contract_id);
     let token_owner = Address::generate(env);
-    let token = env.register_stellar_asset_contract_v2(token_owner).address();
+    let token = env
+        .register_stellar_asset_contract_v2(token_owner)
+        .address();
     client.initialize(&admin, &fee_collector, &0_u32);
-    Ctx { env, client, admin, token }
+    Ctx {
+        env,
+        client,
+        admin,
+        token,
+    }
 }
 
 fn mint(env: &Env, token: &Address, to: &Address, amount: i128) {
@@ -46,7 +53,10 @@ fn mint(env: &Env, token: &Address, to: &Address, amount: i128) {
 
 fn payees(env: &Env, seller: &Address) -> Vec<Payee> {
     let mut v = Vec::new(env);
-    v.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    v.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
     v
 }
 
@@ -57,13 +67,13 @@ fn pending(ctx: &Ctx) -> (u64, Address, Address, Address) {
     let buyer = Address::generate(ctx.env);
     let resolver = Address::generate(ctx.env);
     let p = payees(ctx.env, &seller);
-    let id = ctx.client.create_escrow(
-        &p,
+    let p_val = p.into_val(ctx.env);
+    let id = ctx.client.create_escrow_8(
+        &p_val,
         &None::<Address>,
         &resolver,
         &ctx.token,
         &1_000_i128,
-        &0_u32,
         &0_u32,
         &3_600_u64,
     );
@@ -79,7 +89,8 @@ fn funded(ctx: &Ctx) -> (u64, Address, Address, Address) {
 
 fn shipped(ctx: &Ctx) -> (u64, Address, Address, Address) {
     let (id, seller, buyer, resolver) = funded(ctx);
-    ctx.client.mark_shipped(&seller, &id, &SorobanString::from_str(ctx.env, "TRK001"));
+    ctx.client
+        .mark_shipped(&seller, &id, &SorobanString::from_str(ctx.env, "TRK001"));
     (id, seller, buyer, resolver)
 }
 
@@ -112,7 +123,8 @@ fn pause_action_rejects_intruder() {
     let ctx = setup(&env);
     let intruder = Address::generate(&env);
     assert_eq!(
-        ctx.client.try_pause_action(&intruder, &Symbol::new(&env, "SHIP")),
+        ctx.client
+            .try_pause_action(&intruder, &Symbol::new(&env, "SHIP")),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -122,10 +134,12 @@ fn unpause_action_rejects_intruder() {
     let env = Env::default();
     let ctx = setup(&env);
     // Pause it first so the state is correct, then test wrong caller.
-    ctx.client.pause_action(&ctx.admin, &Symbol::new(&env, "SHIP"));
+    ctx.client
+        .pause_action(&ctx.admin, &Symbol::new(&env, "SHIP"));
     let intruder = Address::generate(&env);
     assert_eq!(
-        ctx.client.try_unpause_action(&intruder, &Symbol::new(&env, "SHIP")),
+        ctx.client
+            .try_unpause_action(&intruder, &Symbol::new(&env, "SHIP")),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -244,7 +258,8 @@ fn set_amount_limits_rejects_intruder() {
     let ctx = setup(&env);
     let intruder = Address::generate(&env);
     assert_eq!(
-        ctx.client.try_set_amount_limits(&intruder, &1_i128, &1_000_000_i128),
+        ctx.client
+            .try_set_amount_limits(&intruder, &1_i128, &1_000_000_i128),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -292,7 +307,8 @@ fn resolver_cannot_withdraw_fees() {
     let (_, _, _, resolver) = pending(&ctx);
     let recipient = Address::generate(&env);
     assert_eq!(
-        ctx.client.try_withdraw_fees(&resolver, &ctx.token, &recipient, &1_i128),
+        ctx.client
+            .try_withdraw_fees(&resolver, &ctx.token, &recipient, &1_i128),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -327,7 +343,8 @@ fn mark_shipped_rejects_buyer() {
     let ctx = setup(&env);
     let (id, _, buyer, _) = funded(&ctx);
     assert_eq!(
-        ctx.client.try_mark_shipped(&buyer, &id, &SorobanString::from_str(&env, "TRK")),
+        ctx.client
+            .try_mark_shipped(&buyer, &id, &SorobanString::from_str(&env, "TRK")),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -338,7 +355,8 @@ fn mark_shipped_rejects_resolver() {
     let ctx = setup(&env);
     let (id, _, _, resolver) = funded(&ctx);
     assert_eq!(
-        ctx.client.try_mark_shipped(&resolver, &id, &SorobanString::from_str(&env, "TRK")),
+        ctx.client
+            .try_mark_shipped(&resolver, &id, &SorobanString::from_str(&env, "TRK")),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -350,7 +368,8 @@ fn mark_shipped_rejects_intruder() {
     let (id, _, _, _) = funded(&ctx);
     let intruder = Address::generate(&env);
     assert_eq!(
-        ctx.client.try_mark_shipped(&intruder, &id, &SorobanString::from_str(&env, "TRK")),
+        ctx.client
+            .try_mark_shipped(&intruder, &id, &SorobanString::from_str(&env, "TRK")),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -547,7 +566,8 @@ fn resolve_dispute_rejects_buyer() {
     let ctx = setup(&env);
     let (id, _, buyer, _) = disputed(&ctx);
     assert_eq!(
-        ctx.client.try_resolve_dispute(&buyer, &id, &ResolutionType::Release),
+        ctx.client
+            .try_resolve_dispute(&buyer, &id, &ResolutionType::Release),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -558,7 +578,8 @@ fn resolve_dispute_rejects_seller() {
     let ctx = setup(&env);
     let (id, seller, _, _) = disputed(&ctx);
     assert_eq!(
-        ctx.client.try_resolve_dispute(&seller, &id, &ResolutionType::Release),
+        ctx.client
+            .try_resolve_dispute(&seller, &id, &ResolutionType::Release),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -570,7 +591,8 @@ fn resolve_dispute_rejects_intruder() {
     let (id, _, _, _) = disputed(&ctx);
     let intruder = Address::generate(&env);
     assert_eq!(
-        ctx.client.try_resolve_dispute(&intruder, &id, &ResolutionType::Release),
+        ctx.client
+            .try_resolve_dispute(&intruder, &id, &ResolutionType::Release),
         Err(Ok(ContractError::NotAuthorized))
     );
 }
@@ -673,7 +695,8 @@ fn mark_shipped_rejects_seller_in_pending_state() {
     let ctx = setup(&env);
     let (id, seller, _, _) = pending(&ctx);
     assert_eq!(
-        ctx.client.try_mark_shipped(&seller, &id, &SorobanString::from_str(&env, "TRK")),
+        ctx.client
+            .try_mark_shipped(&seller, &id, &SorobanString::from_str(&env, "TRK")),
         Err(Ok(ContractError::InvalidState))
     );
 }
@@ -697,13 +720,16 @@ fn raise_dispute_rejects_buyer_in_pending_state() {
     let hash = BytesN::from_array(&env, &[0u8; 32]);
     // buyer check passes (buyer is set after fund but NOT here — escrow is Pending
     // with no buyer yet, so EscrowHasNoBuyer fires before the state check)
-    assert!(ctx.client.try_raise_dispute(
-        &buyer,
-        &id,
-        &Symbol::new(&env, "Item"),
-        &SorobanString::from_str(&env, "desc"),
-        &hash,
-    ).is_err());
+    assert!(ctx
+        .client
+        .try_raise_dispute(
+            &buyer,
+            &id,
+            &Symbol::new(&env, "Item"),
+            &SorobanString::from_str(&env, "desc"),
+            &hash,
+        )
+        .is_err());
 }
 
 #[test]
@@ -745,7 +771,8 @@ fn resolve_dispute_rejects_resolver_in_shipped_state() {
     let ctx = setup(&env);
     let (id, _, _, resolver) = shipped(&ctx);
     assert_eq!(
-        ctx.client.try_resolve_dispute(&resolver, &id, &ResolutionType::Release),
+        ctx.client
+            .try_resolve_dispute(&resolver, &id, &ResolutionType::Release),
         Err(Ok(ContractError::InvalidState))
     );
 }

@@ -31,7 +31,9 @@ pub fn get_ttl_extension(env: &Env) -> u32 {
 /// (Admin, FeeConfig, EscrowCounter, etc.) never expire between interactions.
 pub fn extend_instance_ttl(env: &Env) {
     let ext = get_ttl_extension(env);
-    env.storage().instance().extend_ttl(ext / crate::TTL_THRESHOLD_DIVISOR, ext);
+    env.storage()
+        .instance()
+        .extend_ttl(ext / crate::TTL_THRESHOLD_DIVISOR, ext);
 }
 
 /// Helper to extend TTL on a persistent storage key.
@@ -59,7 +61,9 @@ pub fn read_admin_address(env: &Env) -> Option<Address> {
 }
 
 pub fn write_fee_config(env: &Env, fee_config: &FeeConfig) {
-    env.storage().instance().set(&DataKey::FeeConfig, fee_config);
+    env.storage()
+        .instance()
+        .set(&DataKey::FeeConfig, fee_config);
 }
 
 pub fn read_fee_config(env: &Env) -> Option<FeeConfig> {
@@ -67,11 +71,16 @@ pub fn read_fee_config(env: &Env) -> Option<FeeConfig> {
 }
 
 pub fn write_escrow_counter(env: &Env, counter: u64) {
-    env.storage().instance().set(&DataKey::EscrowCounter, &counter);
+    env.storage()
+        .instance()
+        .set(&DataKey::EscrowCounter, &counter);
 }
 
 pub fn read_escrow_counter(env: &Env) -> u64 {
-    env.storage().instance().get(&DataKey::EscrowCounter).unwrap_or(0)
+    env.storage()
+        .instance()
+        .get(&DataKey::EscrowCounter)
+        .unwrap_or(0)
 }
 
 pub fn write_escrow_data(env: &Env, escrow_id: u64, escrow: &EscrowData) {
@@ -207,12 +216,16 @@ mod tests {
             write_buyer_escrow_index(&env, &addr, &buyer_ids);
         });
 
-        let got_vendor =
-            env.as_contract(&contract_id, || read_vendor_escrow_index(&env, &addr));
-        let got_buyer =
-            env.as_contract(&contract_id, || read_buyer_escrow_index(&env, &addr));
+        let got_vendor = env.as_contract(&contract_id, || read_vendor_escrow_index(&env, &addr));
+        let got_buyer = env.as_contract(&contract_id, || read_buyer_escrow_index(&env, &addr));
 
-        assert_eq!(got_vendor, vendor_ids, "VendorEscrowIndex and BuyerEscrowIndex must not collide for the same address");
-        assert_eq!(got_buyer, buyer_ids, "BuyerEscrowIndex must be independent of VendorEscrowIndex");
+        assert_eq!(
+            got_vendor, vendor_ids,
+            "VendorEscrowIndex and BuyerEscrowIndex must not collide for the same address"
+        );
+        assert_eq!(
+            got_buyer, buyer_ids,
+            "BuyerEscrowIndex must be independent of VendorEscrowIndex"
+        );
     }
 }

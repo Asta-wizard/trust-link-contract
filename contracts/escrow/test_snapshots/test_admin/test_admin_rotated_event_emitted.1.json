@@ -184,7 +184,10 @@
           "v0": {
             "topics": [
               {
-                "symbol": "admin_rotated"
+                "symbol": "Admin"
+              },
+              {
+                "symbol": "Rotated"
               }
             ],
             "data": {
@@ -203,6 +206,14 @@
                   },
                   "val": {
                     "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                  }
+                },
+                {
+                  "key": {
+                    "symbol": "schema_version"
+                  },
+                  "val": {
+                    "u32": 1
                   }
                 },
                 {

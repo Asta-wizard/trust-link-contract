@@ -2,7 +2,7 @@
 
 use crate::test_helpers::{create_funded_escrow, setup_contract};
 use crate::Payee;
-use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, Vec};
 
 fn register_token(env: &Env) -> Address {
     let token_admin = Address::generate(env);
@@ -47,14 +47,14 @@ fn test_get_escrows_by_buyer() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees_47.into_val(&env);
     let _id4 = client.create_escrow_8(
-        &payees_47,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
         &4000_i128,
         &100_u32,
-        &0_u32,
         &3600_u64,
     );
 
@@ -94,14 +94,14 @@ fn test_buyer_index_populated_on_fund() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees_46.into_val(&env);
     let id = client.create_escrow_8(
-        &payees_46,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
         &1000_i128,
         &100_u32,
-        &0_u32,
         &3600_u64,
     );
     client.fund_escrow(&id, &buyer);

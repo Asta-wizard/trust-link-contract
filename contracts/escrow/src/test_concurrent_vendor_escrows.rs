@@ -2,8 +2,8 @@
 
 use crate::{Escrow, EscrowClient, EscrowState, Payee};
 use soroban_sdk::{
-    testutils::{Address as _, Ledger as _, Vec},
-    Address, Env,
+    testutils::{Address as _, Ledger as _},
+    Address, Env, IntoVal, Vec,
 };
 
 fn setup_env() -> (Env, Address, Address, Address, Address, Address) {
@@ -41,13 +41,13 @@ fn same_vendor_can_create_multiple_escrows_without_collision() {
             address: seller.clone(),
             bps: 10_000,
         });
-        let id = client.create_escrow(
-            &payees_13,
+        let payees_13_val = payees_13.into_val(&env);
+        let id = client.create_escrow_8(
+            &payees_13_val,
             &None::<Address>,
             &resolver,
             &token,
             &amount,
-            &0_u32,
             &0_u32,
             &3600_u64,
         );
@@ -69,7 +69,7 @@ fn same_vendor_can_create_multiple_escrows_without_collision() {
         let escrow = client.get_escrow(&(i as u64));
         let expected_amount = 100_i128 + (i as i128);
 
-        assert_eq!(escrow.seller, seller);
+        assert_eq!(escrow.payees.get(0).unwrap().address, seller);
         assert_eq!(escrow.amount, expected_amount);
         assert_eq!(escrow.state, EscrowState::Pending);
     }
@@ -93,13 +93,13 @@ fn escrow_storage_entries_remain_isolated() {
         address: seller.clone(),
         bps: 10_000,
     });
-    let id1 = client.create_escrow(
-        &payees_12,
+    let payees_12_val = payees_12.into_val(&env);
+    let id1 = client.create_escrow_8(
+        &payees_12_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -108,13 +108,13 @@ fn escrow_storage_entries_remain_isolated() {
         address: seller.clone(),
         bps: 10_000,
     });
-    let id2 = client.create_escrow(
-        &payees_11,
+    let payees_11_val = payees_11.into_val(&env);
+    let id2 = client.create_escrow_8(
+        &payees_11_val,
         &None::<Address>,
         &resolver,
         &token,
         &200_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -123,13 +123,13 @@ fn escrow_storage_entries_remain_isolated() {
         address: seller.clone(),
         bps: 10_000,
     });
-    let id3 = client.create_escrow(
-        &payees_10,
+    let payees_10_val = payees_10.into_val(&env);
+    let id3 = client.create_escrow_8(
+        &payees_10_val,
         &None::<Address>,
         &resolver,
         &token,
         &300_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -163,13 +163,13 @@ fn escrow_counter_remains_monotonic_under_rapid_creation() {
             address: seller.clone(),
             bps: 10_000,
         });
-        let id = client.create_escrow(
-            &payees_9,
+        let payees_9_val = payees_9.into_val(&env);
+        let id = client.create_escrow_8(
+            &payees_9_val,
             &None::<Address>,
             &resolver,
             &token,
             &100_i128,
-            &0_u32,
             &0_u32,
             &3600_u64,
         );

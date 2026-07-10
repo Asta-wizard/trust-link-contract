@@ -5,11 +5,20 @@
 //!  - `fund_escrow` post-expiry fails with `EscrowExpired`
 //!  - `auto_cancel_pending` transitions the escrow to `Canceled`
 
-use crate::{ContractError, Escrow, EscrowClient, EscrowState};
+use crate::{ContractError, Escrow, EscrowClient, EscrowState, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
-    token, Address, Env,
+    token, Address, Env, IntoVal, Vec,
 };
+
+fn single_payee(env: &Env, address: &Address) -> Vec<Payee> {
+    let mut payees = Vec::new(env);
+    payees.push_back(Payee {
+        address: address.clone(),
+        bps: 10_000,
+    });
+    payees
+}
 
 const PENDING_EXPIRY_WINDOW: u64 = 604_800; // 7 days, must match lib.rs
 
@@ -39,8 +48,10 @@ fn fund_escrow_before_expiry_succeeds() {
     env.ledger().set_timestamp(1_000_000);
     let (client, seller, buyer, resolver, _fee_collector, token_addr) = setup(&env);
 
-    let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token_addr,
@@ -72,8 +83,10 @@ fn fund_escrow_after_expiry_returns_escrow_expired() {
     env.ledger().set_timestamp(1_000_000);
     let (client, seller, buyer, resolver, _fee_collector, token_addr) = setup(&env);
 
-    let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token_addr,
@@ -102,8 +115,10 @@ fn auto_cancel_pending_before_expiry_is_rejected() {
     env.ledger().set_timestamp(1_000_000);
     let (client, seller, _buyer, resolver, _fee_collector, token_addr) = setup(&env);
 
-    let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token_addr,
@@ -132,8 +147,10 @@ fn auto_cancel_pending_after_expiry_transitions_to_canceled() {
     env.ledger().set_timestamp(1_000_000);
     let (client, seller, _buyer, resolver, _fee_collector, token_addr) = setup(&env);
 
-    let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token_addr,
@@ -169,8 +186,10 @@ fn auto_cancel_pending_on_funded_escrow_returns_invalid_state() {
     env.ledger().set_timestamp(1_000_000);
     let (client, seller, buyer, resolver, _fee_collector, token_addr) = setup(&env);
 
-    let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token_addr,

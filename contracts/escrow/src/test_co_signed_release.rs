@@ -1,12 +1,13 @@
 #![cfg(test)]
 
-use soroban_sdk::{testutils::Address as _, Address, Env};
-use crate::{EscrowState, ContractError, DataKey};
-use crate::test_helpers::{setup_contract, mint_token};
+use crate::test_helpers::{mint_token, setup_contract};
+use crate::{ContractError, DataKey, EscrowState};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal};
 
 fn register_token(env: &Env) -> Address {
     let token_admin = Address::generate(&env);
-    env.register_stellar_asset_contract_v2(token_admin.clone()).address()
+    env.register_stellar_asset_contract_v2(token_admin.clone())
+        .address()
 }
 
 #[test]
@@ -23,7 +24,16 @@ fn test_co_signed_release_from_funded() {
 
     mint_token(&env, &token, &buyer, 1000);
 
-    let id = client.create_escrow(&seller, &resolver, &token, &500_i128, &0_u32, &3600_u64);
+    let seller_val = seller.clone().into_val(&env);
+    let id = client.create_escrow_8(
+        &seller_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &500_i128,
+        &0_u32,
+        &3600_u64,
+    );
 
     client.fund_escrow(&id, &buyer);
 
@@ -49,7 +59,16 @@ fn test_co_signed_release_requires_both_auths() {
 
     mint_token(&env, &token, &buyer, 1000);
 
-    let id = client.create_escrow(&seller, &resolver, &token, &500_i128, &0_u32, &3600_u64);
+    let seller_val = seller.clone().into_val(&env);
+    let id = client.create_escrow_8(
+        &seller_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &500_i128,
+        &0_u32,
+        &3600_u64,
+    );
     client.fund_escrow(&id, &buyer);
 
     // With mock_all_auths this simulates a transaction where both seller and buyer sign.

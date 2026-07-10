@@ -81,7 +81,8 @@ fn test_sep41_fund_and_confirm_delivery() {
 
     let mut payees1 = Vec::new(&env);
     payees1.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees1, &None::<Address>, &resolver, &token, &500_i128, &100_u32, &0_u32, &3600_u64);
+    let payees1_val = payees1.into_val(&env);
+    let id = client.create_escrow_8(&payees1_val, &None::<Address>, &resolver, &token, &500_i128, &100_u32, &0_u32, &3600_u64);
     client.fund_escrow(&id, &buyer);
     client.mark_shipped(&seller, &id, &SorobanString::from_str(&env, "TRACK001"));
 
@@ -128,7 +129,8 @@ fn test_sep41_auto_release() {
 
     let mut payees2 = Vec::new(&env);
     payees2.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees2, &None::<Address>, &resolver, &token, &1000_i128, &0_u32, &0_u32, &3600_u64);
+    let payees2_val = payees2.into_val(&env);
+    let id = client.create_escrow_8(&payees2_val, &None::<Address>, &resolver, &token, &1000_i128, &0_u32, &0_u32, &3600_u64);
     client.fund_escrow(&id, &buyer);
     client.mark_shipped(&seller, &id, &SorobanString::from_str(&env, "TRACK-AUTO"));
     env.ledger().set_timestamp(1_700_000_000);
@@ -164,7 +166,8 @@ fn test_sep41_dispute_and_refund() {
 
     let mut payees3 = Vec::new(&env);
     payees3.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees3, &None::<Address>, &resolver, &token, &800_i128, &0_u32, &0_u32, &3600_u64);
+    let payees3_val = payees3.into_val(&env);
+    let id = client.create_escrow_8(&payees3_val, &None::<Address>, &resolver, &token, &800_i128, &0_u32, &0_u32, &3600_u64);
     client.fund_escrow(&id, &buyer);
     client.mark_shipped(&seller, &id, &SorobanString::from_str(&env, "TRACK-DISPUTE"));
 
@@ -205,7 +208,8 @@ fn test_sep41_token_address_stored_in_escrow() {
 
     let mut payees4 = Vec::new(&env);
     payees4.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees4, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &3600_u64);
+    let payees4_val = payees4.into_val(&env);
+    let id = client.create_escrow_8(&payees4_val, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &3600_u64);
     // Verify the stored token address matches what was passed in
     assert_eq!(client.get_escrow(&id).token, token);
 }
@@ -227,7 +231,8 @@ fn test_sep41_cancel_escrow() {
     // Create escrow (starts in Pending state)
     let mut payees5 = Vec::new(&env);
     payees5.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees5, &None::<Address>, &resolver, &token, &1000_i128, &0_u32, &0_u32, &3600_u64);
+    let payees5_val = payees5.into_val(&env);
+    let id = client.create_escrow_8(&payees5_val, &None::<Address>, &resolver, &token, &1000_i128, &0_u32, &0_u32, &3600_u64);
 
     let escrow_before = client.get_escrow(&id);
     assert_eq!(escrow_before.state, EscrowState::Pending);
@@ -268,7 +273,8 @@ fn test_sep41_dispute_and_release() {
     // Create escrow with 1000 amount, 100 BPS (1.0%) fee
     let mut payees6 = Vec::new(&env);
     payees6.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees6, &None::<Address>, &resolver, &token, &1000_i128, &100_u32, &0_u32, &3600_u64);
+    let payees6_val = payees6.into_val(&env);
+    let id = client.create_escrow_8(&payees6_val, &None::<Address>, &resolver, &token, &1000_i128, &100_u32, &0_u32, &3600_u64);
     client.fund_escrow(&id, &buyer);
     client.mark_shipped(&seller, &id, &SorobanString::from_str(&env, "TRACK-RELEASE"));
 
@@ -332,7 +338,8 @@ fn test_sep41_auto_release_with_fees() {
 
     let mut payees7 = Vec::new(&env);
     payees7.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees7, &None::<Address>, &resolver, &token, &1000_i128, &0_u32, &0_u32, &3600_u64);
+    let payees7_val = payees7.into_val(&env);
+    let id = client.create_escrow_8(&payees7_val, &None::<Address>, &resolver, &token, &1000_i128, &0_u32, &0_u32, &3600_u64);
     client.fund_escrow(&id, &buyer);
     client.mark_shipped(&seller, &id, &SorobanString::from_str(&env, "TRACK-AUTO-FEES"));
     env.ledger().set_timestamp(1_700_000_000);

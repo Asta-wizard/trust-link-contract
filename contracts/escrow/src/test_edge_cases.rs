@@ -2,10 +2,10 @@
 
 use crate::helpers::payout::calculate_protocol_fee;
 use crate::test_helpers::{advance_time, create_funded_escrow, setup_contract};
-use crate::{ContractError, Escrow, EscrowClient, MIN_ESCROW_AMOUNT, Payee};
+use crate::{ContractError, Escrow, EscrowClient, Payee, MIN_ESCROW_AMOUNT};
 use soroban_sdk::{
-    testutils::{Address as _, Ledger as _, Vec},
-    token, Address, BytesN, Env, String as SorobanString, Symbol,
+    testutils::{Address as _, Ledger as _},
+    token, Address, BytesN, Env, IntoVal, String as SorobanString, Symbol, Vec,
 };
 
 /// Seconds the dispute window stays open after funding (mirrors the private
@@ -91,8 +91,9 @@ fn test_buyer_index_populated_on_cancel_by_buyer() {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees_25.into_val(&env);
     let id = client.create_escrow(
-        &payees_25,
+        &payees_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
@@ -100,6 +101,7 @@ fn test_buyer_index_populated_on_cancel_by_buyer() {
         &100_u32,
         &0_u32,
         &3600_u64,
+        &None::<SorobanString>,
     );
 
     // The buyer cancels the still-Pending escrow.
@@ -174,12 +176,15 @@ fn test_min_escrow_amount_rejects_dust_prone_amount() {
     let (_contract_id, client, _admin, _fee_collector) = setup_contract(&env);
     let seller = Address::generate(&env);
     let resolver = Address::generate(&env);
-    let token = env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
 
     // 99 stroops, 1% fee — the exact case from the bug report.
     // MIN_ESCROW_AMOUNT = 1, so 99 is above the minimum and should succeed for creation.
-    let result = client.try_create_escrow(
-        &seller,
+    let seller_val = seller.clone().into_val(&env);
+    let result = client.try_create_escrow_8(
+        &seller_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -190,8 +195,9 @@ fn test_min_escrow_amount_rejects_dust_prone_amount() {
     assert!(result.is_ok());
 
     // One stroop below the minimum is still rejected.
-    let result = client.try_create_escrow(
-        &seller,
+    let seller_val = seller.clone().into_val(&env);
+    let result = client.try_create_escrow_8(
+        &seller_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -218,7 +224,9 @@ fn test_confirm_delivery_leaves_no_dust_for_non_divisible_amounts() {
         let seller = Address::generate(&env);
         let buyer = Address::generate(&env);
         let resolver = Address::generate(&env);
-        let token = env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+        let token = env
+            .register_stellar_asset_contract_v2(Address::generate(&env))
+            .address();
 
         let id = create_funded_escrow(
             &env, &client, &seller, &buyer, &resolver, &token, amount, fee_bps, 3600,
@@ -264,7 +272,9 @@ fn test_mark_shipped_twice_reverts() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let token = env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
     let (_contract_id, client, _admin, _fee_collector) = setup_contract(&env);
 
     let seller = Address::generate(&env);
@@ -301,7 +311,9 @@ fn test_record_delivery_on_disputed_escrow_reverts() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let token = env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
     let (_contract_id, client, admin, _fee_collector) = setup_contract(&env);
 
     let seller = Address::generate(&env);
@@ -341,7 +353,9 @@ fn test_counter_survives_near_ttl_expiry() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let token = env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
     let (_contract_id, client, _admin, _fee_collector) = setup_contract(&env);
 
     let seller = Address::generate(&env);

@@ -11,7 +11,7 @@
 use crate::{ContractError, Escrow, EscrowClient, EscrowData, EscrowState, DataKey, Milestone};
 use soroban_sdk::{
     testutils::{Address as _, Events, Ledger as _},
-    token, vec, Address, Env, FromVal, Symbol, Vec,
+    token, vec, Address, Env, FromVal, IntoVal, Symbol, Vec,
 };
 
 const DISPUTE_WINDOW_SECS: u64 = 172_800; // 48h, matches the contract constant.
@@ -362,8 +362,9 @@ fn release_milestone_rejects_on_non_milestone_escrow() {
 
     let mut payees: Vec<crate::Payee> = Vec::new(&env);
     payees.push_back(crate::Payee { address: seller.clone(), bps: 10_000 });
-    let escrow_id = client.create_escrow(
-        &payees,
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token_addr,

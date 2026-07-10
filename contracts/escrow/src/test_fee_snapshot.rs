@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use soroban_sdk::{
-        testutils::{Address as _, Ledger},
-        Address, Env,
-    };
-    use crate::{Escrow, EscrowClient};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    Address, Env, IntoVal, Vec,
+};
+    use crate::{Escrow, EscrowClient, Payee};
 
     const DISPUTE_WINDOW: u64 = 172_800;
 
@@ -18,9 +18,18 @@ mod tests {
 
         let contract_id = env.register(Escrow, ());
         let client = EscrowClient::new(env, &contract_id);
-        client.initialize(&admin, &fee_collector, &0_i128, &0_u32);
+        client.initialize(&admin, &fee_collector, &0_u32);
 
         (client, admin, fee_collector)
+    }
+
+    fn single_payee(env: &Env, address: &Address) -> Vec<Payee> {
+        let mut payees = Vec::new(env);
+        payees.push_back(Payee {
+            address: address.clone(),
+            bps: 10_000,
+        });
+        payees
     }
 
     /// Core regression: fee snapshotted at create_escrow time must be used
@@ -45,14 +54,16 @@ mod tests {
         let client = EscrowClient::new(&env, &contract_id);
 
         // Initialize with 1% fee (100 bps).
-        client.initialize(&admin, &fee_collector, &0_i128, &0_u32);
+        client.initialize(&admin, &fee_collector, &0_u32);
         client.set_protocol_fee(&admin, &100_u32);
 
         let amount = 1_000_000_i128;
 
         // Create escrow at 1% fee — this snapshots fee_bps = 100 into EscrowData.
-        let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+        let payees = single_payee(&env, &seller);
+        let payees_val = payees.into_val(&env);
+        let escrow_id = client.create_escrow_8(
+        &payees_val,
         &buyer,
         &resolver,
         &token_id,
@@ -109,14 +120,16 @@ mod tests {
         let contract_id = env.register(Escrow, ());
         let client = EscrowClient::new(&env, &contract_id);
 
-        client.initialize(&admin, &fee_collector, &0_i128, &0_u32);
+        client.initialize(&admin, &fee_collector, &0_u32);
         client.set_protocol_fee(&admin, &100_u32);
 
         let amount = 1_000_000_i128;
         let shipping_window: u64 = 604_800;
 
-        let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+        let payees = single_payee(&env, &seller);
+        let payees_val = payees.into_val(&env);
+        let escrow_id = client.create_escrow_8(
+        &payees_val,
         &buyer,
         &resolver,
         &token_id,

@@ -4,7 +4,7 @@ use crate::test_helpers::setup_contract;
 use crate::{EscrowState, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
-    Address, Env,
+    Address, Env, IntoVal, String, Vec,
 };
 
 fn register_token(env: &Env) -> Address {
@@ -45,13 +45,13 @@ fn test_get_escrows_by_vendor_multiple() {
         address: vendor_1.clone(),
         bps: 10_000,
     });
+    let payees_51_val = payees_51.into_val(&env);
     let id1 = client.create_escrow_8(
-        &payees_51,
+        &payees_51_val,
         &None::<Address>,
         &resolver,
         &token,
         &1000_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -60,13 +60,13 @@ fn test_get_escrows_by_vendor_multiple() {
         address: vendor_1.clone(),
         bps: 10_000,
     });
+    let payees_50_val = payees_50.into_val(&env);
     let id2 = client.create_escrow_8(
-        &payees_50,
+        &payees_50_val,
         &None::<Address>,
         &resolver,
         &token,
         &2000_i128,
-        &0_u32,
         &0_u32,
         &3600_u64,
     );
@@ -77,16 +77,17 @@ fn test_get_escrows_by_vendor_multiple() {
         address: vendor_2.clone(),
         bps: 10_000,
     });
-    let id3 = client.create_escrow_8(
-        &payees_49,
+    let payees_49_val = payees_49.into_val(&env);
+    let id3 = client.create_escrow(
+        &payees_49_val,
         &None::<Address>,
         &resolver,
         &token,
         &3000_i128,
         &0_u32,
-    &0_u32,          // 7. Add resolver fee bps
-    &3600_u64,       // 8. Shipping window
-    &None::<String>,
+        &0_u32,    // resolver fee bps
+        &3600_u64, // Shipping window
+        &None::<String>,
     );
 
     // Check escrows for vendor 1
@@ -119,16 +120,17 @@ fn test_vendor_escrow_data_integrity_and_state_transitions() {
         address: vendor.clone(),
         bps: 10_000,
     });
-    let id = client.create_escrow_8(
-        &payees_48,
+    let payees_48_val = payees_48.into_val(&env);
+    let id = client.create_escrow(
+        &payees_48_val,
         &None::<Address>,
         &resolver,
         &token,
         &1000_i128,
         &0_u32,
-    &0_u32,          // 7. Add resolver fee bps
-    &3600_u64,       // 8. Shipping window
-    &None::<String>,
+        &0_u32,    // resolver fee bps
+        &3600_u64, // Shipping window
+        &None::<String>,
     );
 
     // Assert initial state and data integrity

@@ -8,7 +8,7 @@
 //! reject path.
 
 use crate::{ContractError, Escrow, EscrowClient, Payee};
-use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, String, Vec};
 
 /// Fresh contract with admin/fee_collector initialised. All auths are mocked
 /// so tests can drive the API freely; each test then exercises authorization
@@ -126,9 +126,10 @@ fn create_escrow_rejects_resolver_equal_to_seller() {
     let seller = Address::generate(&env);
     let token = register_token(&env);
 
+    let seller_val = seller.clone().into_val(&env);
     assert_eq!(
-        client.try_create_escrow(
-            &seller,
+        client.try_create_escrow_8(
+            &seller_val,
             &None::<Address>,
             &seller, // resolver == seller
             &token,
@@ -153,9 +154,13 @@ fn fund_escrow_rejects_buyer_equal_to_seller() {
     soroban_sdk::token::StellarAssetClient::new(&env, &token).mint(&seller, &1000_i128);
 
     let mut payees_69 = Vec::new(&env);
-    payees_69.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    payees_69.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
+    let payees_69_val = payees_69.into_val(&env);
     let id = client.create_escrow(
-        &payees_69,
+        &payees_69_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -163,6 +168,7 @@ fn fund_escrow_rejects_buyer_equal_to_seller() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
 
     assert_eq!(
@@ -184,9 +190,13 @@ fn fund_escrow_rejects_buyer_equal_to_resolver() {
     soroban_sdk::token::StellarAssetClient::new(&env, &token).mint(&resolver, &1000_i128);
 
     let mut payees_68 = Vec::new(&env);
-    payees_68.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    payees_68.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
+    let payees_68_val = payees_68.into_val(&env);
     let id = client.create_escrow(
-        &payees_68,
+        &payees_68_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -194,6 +204,7 @@ fn fund_escrow_rejects_buyer_equal_to_resolver() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
 
     assert_eq!(

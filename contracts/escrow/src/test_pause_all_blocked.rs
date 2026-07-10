@@ -3,7 +3,7 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{testutils::{Address as _, Ledger as _, Vec}, token, Address, Env, Symbol, String as SorobanString};
+use soroban_sdk::{testutils::{Address as _, Ledger as _}, token, Address, Env, IntoVal, Symbol, String as SorobanString, Vec};
 
 const DISPUTE_WINDOW: u64 = 172_800;
 
@@ -42,12 +42,14 @@ fn test_pause_blocks_all_mutations() {
     client.pause_contract(&admin);
 
     // 1. try_create_escrow should fail
-    let create_res = client.try_create_escrow(
-        &seller,
+    let seller_val = seller.clone().into_val(&env);
+    let create_res = client.try_create_escrow_8(
+        &seller_val,
         &None::<Address>,
         &resolver,
         &token,
         &100_i128,
+        &0_u32,
         &0_u32,
         &36_00_u64,
     );
@@ -57,8 +59,9 @@ fn test_pause_blocks_all_mutations() {
     client.unpause_contract(&admin);
     let mut payees_65 = Vec::new(&env);
     payees_65.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    let payees_65_val = payees_65.into_val(&env);
     let escrow_id = client.create_escrow_8(
-        &payees_65,
+        &payees_65_val,
         &None::<Address>,
         &resolver,
         &token,

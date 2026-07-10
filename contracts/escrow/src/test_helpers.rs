@@ -3,7 +3,7 @@
 use crate::{Escrow, EscrowClient, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
-    token, Address, Env, Vec,
+    token, Address, Env, IntoVal, String, Vec,
 };
 
 pub fn setup_contract(env: &Env) -> (Address, EscrowClient, Address, Address) {
@@ -41,16 +41,14 @@ pub fn create_funded_escrow(
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees.into_val(env);
     let id = client.create_escrow_7(
-        &payees,
+        &payees_val,
         &None::<Address>,
         resolver,
         token,
         &amount,
         &fee_bps,
-        &0_u32,
-        &shipping_window,
-        &None::<String>,
     );
     client.fund_escrow(&id, buyer);
     id

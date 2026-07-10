@@ -1,8 +1,17 @@
 #![cfg(test)]
 
-use crate::{ContractError, EscrowClient, ResolutionType};
+use crate::{ContractError, EscrowClient, Payee, ResolutionType};
 use soroban_sdk::testutils::{Address as _, Events, Ledger as _};
-use soroban_sdk::{token, Address, Env};
+use soroban_sdk::{token, Address, Env, IntoVal, Vec};
+
+fn single_payee(env: &Env, address: &Address) -> Vec<Payee> {
+    let mut payees = Vec::new(env);
+    payees.push_back(Payee {
+        address: address.clone(),
+        bps: 10_000,
+    });
+    payees
+}
 
 fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address) {
     let env = Env::default();
@@ -39,15 +48,16 @@ fn test_accumulated_fees() {
     client.set_protocol_fee(&admin, &100_u32);
 
     let amount = 1000;
-    let id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let id = client.create_escrow_8(
+        &payees_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
         &amount,
         &100_u32,
         &0_u32,
-        // Escrow fee 1%
         &3600,
     );
 

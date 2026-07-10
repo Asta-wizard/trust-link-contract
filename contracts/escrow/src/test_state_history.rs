@@ -3,14 +3,16 @@
 use crate::{ContractError, Escrow, EscrowClient, EscrowState, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
-    token, Address, Env, String as SorobanString,
+    token, Address, Env, IntoVal, String as SorobanString,
 };
 
 fn setup(env: &Env) -> (EscrowClient<'static>, Address, Address, Address, Address) {
     let admin = Address::generate(env);
     let seller = Address::generate(env);
     let resolver = Address::generate(env);
-    let token = env.register_stellar_asset_contract(Address::generate(env));
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(env))
+        .address();
     let fee_collector = Address::generate(env);
 
     let contract_id = env.register(Escrow, ());
@@ -39,13 +41,14 @@ fn state_history_records_refund_transitions_with_timestamps() {
     token::StellarAssetClient::new(&env, &token).mint(&buyer, &amount);
 
     env.ledger().set_timestamp(100);
-    let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
         &amount,
-        &0_u32,
         &0_u32,
         &3_600_u64,
     );
@@ -77,13 +80,14 @@ fn state_history_ignores_non_state_updates() {
     token::StellarAssetClient::new(&env, &token).mint(&buyer, &amount);
 
     env.ledger().set_timestamp(1_000);
-    let escrow_id = client.create_escrow(
-        &single_payee(&env, &seller),
+    let payees = single_payee(&env, &seller);
+    let payees_val = payees.into_val(&env);
+    let escrow_id = client.create_escrow_8(
+        &payees_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
         &amount,
-        &0_u32,
         &0_u32,
         &3_600_u64,
     );

@@ -1,11 +1,7 @@
 #![cfg(test)]
 
 use crate::{ContractError, Escrow, EscrowClient, Payee};
-use soroban_sdk::IntoVal;
-use soroban_sdk::{
-    testutils::{Address as _, Ledger, Vec},
-    token, Address, Env,
-};
+use soroban_sdk::{testutils::Address as _, testutils::Ledger, token, Address, Env, IntoVal, Vec};
 
 fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address) {
     let env = Env::default();
@@ -18,7 +14,9 @@ fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address) {
     let token_admin = Address::generate(&env);
     let fee_collector = Address::generate(&env);
 
-    let token_address = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_address = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
 
     (
         env,
@@ -49,7 +47,10 @@ fn test_withdraw_fees_after_multiple_escrows() {
     // Complete 3 escrows that each accrue 1% fees via dispute release.
     for _ in 0..3 {
         let mut payees_72 = Vec::new(&env);
-        payees_72.push_back(Payee { address: seller.clone(), bps: 10_000 });
+        payees_72.push_back(Payee {
+            address: seller.clone(),
+            bps: 10_000,
+        });
         let id = client.create_escrow(
             &payees_72.into_val(&env),
             &None::<Address>,
@@ -75,21 +76,20 @@ fn test_withdraw_fees_after_multiple_escrows() {
             &soroban_sdk::BytesN::from_array(&env, &[0u8; 32]),
         );
         client.resolve_dispute(&resolver, &id, &crate::ResolutionType::Release);
+        env.ledger().set_timestamp(env.ledger().timestamp() + 86401);
+        client.finalize_dispute(&resolver, &id);
     }
 
-    // Total fees: 10 * 3 = 30
-    let contract_balance = token::Client::new(&env, &token).balance(&contract_id);
-    assert_eq!(contract_balance, 30);
+    // Total fees: 10 * 3 = 30 — all go directly to fee_collector
+    let fee_collector_balance = token::Client::new(&env, &token).balance(&fee_collector);
+    assert_eq!(fee_collector_balance, 30);
+    assert_eq!(token::Client::new(&env, &token).balance(&contract_id), 0);
 
-    // Admin calls withdraw_fees for full amount
+    // withdraw_fees is not used in the direct-to-collector model
     let to = Address::generate(&env);
-    client.withdraw_fees(&admin, &token, &to, &30);
-
-    assert_eq!(token::Client::new(&env, &token).balance(&to), 30);
-    // Second withdraw for same amount fails with InsufficientBalance
-    let result2 = client.try_withdraw_fees(&admin, &token, &to, &30);
+    let result = client.try_withdraw_fees(&admin, &token, &to, &30);
     assert!(matches!(
-        result2,
+        result,
         Err(Ok(ContractError::InsufficientBalance))
     ));
 }
@@ -104,12 +104,17 @@ fn test_withdraw_fees_multiple_tokens() {
 
     // Register a second token
     let token_admin_b = Address::generate(&env);
-    let token_b = env.register_stellar_asset_contract_v2(token_admin_b).address();
+    let token_b = env
+        .register_stellar_asset_contract_v2(token_admin_b)
+        .address();
 
     // Accrue fees for Token A (1000 amount, 1% fee = 10)
     mint_tokens(&env, &token_a, &buyer, 1000);
     let mut payees_71 = Vec::new(&env);
-    payees_71.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    payees_71.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
     let id_a = client.create_escrow(
         &payees_71.into_val(&env),
         &None::<Address>,
@@ -135,11 +140,16 @@ fn test_withdraw_fees_multiple_tokens() {
         &soroban_sdk::BytesN::from_array(&env, &[0u8; 32]),
     );
     client.resolve_dispute(&resolver, &id_a, &crate::ResolutionType::Release);
+    env.ledger().set_timestamp(env.ledger().timestamp() + 86401);
+    client.finalize_dispute(&resolver, &id_a);
 
     // Accrue fees for Token B (2000 amount, 2% fee = 40)
     mint_tokens(&env, &token_b, &buyer, 2000);
     let mut payees_70 = Vec::new(&env);
-    payees_70.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    payees_70.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
     let id_b = client.create_escrow(
         &payees_70.into_val(&env),
         &None::<Address>,
@@ -165,23 +175,19 @@ fn test_withdraw_fees_multiple_tokens() {
         &soroban_sdk::BytesN::from_array(&env, &[0u8; 32]),
     );
     client.resolve_dispute(&resolver, &id_b, &crate::ResolutionType::Release);
+    env.ledger().set_timestamp(env.ledger().timestamp() + 86401);
+    client.finalize_dispute(&resolver, &id_b);
 
-    // Verify contract balances
-    assert_eq!(token::Client::new(&env, &token_a).balance(&contract_id), 10);
-    assert_eq!(token::Client::new(&env, &token_b).balance(&contract_id), 40);
-
-    let to = Address::generate(&env);
-
-    // Withdraw Token A
-    client.withdraw_fees(&admin, &token_a, &to, &10);
-    assert_eq!(token::Client::new(&env, &token_a).balance(&to), 10);
+    // Protocol fees go directly to fee_collector
+    assert_eq!(
+        token::Client::new(&env, &token_a).balance(&fee_collector),
+        10
+    );
+    assert_eq!(
+        token::Client::new(&env, &token_b).balance(&fee_collector),
+        40
+    );
     assert_eq!(token::Client::new(&env, &token_a).balance(&contract_id), 0);
-    // Token B balance should remain unchanged
-    assert_eq!(token::Client::new(&env, &token_b).balance(&contract_id), 40);
-
-    // Withdraw Token B
-    client.withdraw_fees(&admin, &token_b, &to, &40);
-    assert_eq!(token::Client::new(&env, &token_b).balance(&to), 40);
     assert_eq!(token::Client::new(&env, &token_b).balance(&contract_id), 0);
 }
 
@@ -194,10 +200,7 @@ fn test_withdraw_fees_zero_amount() {
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let to = Address::generate(&env);
-    
+
     let result = client.try_withdraw_fees(&admin, &token, &to, &0);
-    assert!(matches!(
-        result,
-        Err(Ok(ContractError::InvalidAmount))
-    ));
+    assert!(matches!(result, Err(Ok(ContractError::InvalidAmount))));
 }

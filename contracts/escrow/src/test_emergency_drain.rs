@@ -1,10 +1,10 @@
 #![cfg(test)]
 
+use crate::{ContractError, Escrow, EscrowClient, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
-    token, Address, Env, Vec,
+    token, Address, Env, IntoVal, Vec,
 };
-use crate::{ContractError, Escrow, EscrowClient, Payee};
 
 fn setup(env: &Env) -> (EscrowClient, Address, Address, Address, Address, Address) {
     env.mock_all_auths();
@@ -14,7 +14,9 @@ fn setup(env: &Env) -> (EscrowClient, Address, Address, Address, Address, Addres
     let buyer = Address::generate(env);
     let resolver = Address::generate(env);
     let token_admin = Address::generate(env);
-    let token = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
 
     let token_client = token::StellarAssetClient::new(env, &token);
     token_client.mint(&buyer, &10_000_i128);
@@ -24,8 +26,20 @@ fn setup(env: &Env) -> (EscrowClient, Address, Address, Address, Address, Addres
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let mut payees = Vec::new(env);
-    payees.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees, &None::<Address>, &resolver, &token, &500_i128, &0_u32, &0_u32, &3600_u64);
+    payees.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
+    let payees_val = payees.into_val(env);
+    let id = client.create_escrow_8(
+        &payees_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &500_i128,
+        &0_u32,
+        &3600_u64,
+    );
     client.fund_escrow(&id, &buyer);
 
     (client, admin, seller, buyer, resolver, token)
@@ -75,15 +89,29 @@ fn emergency_drain_fails_on_pending_escrow() {
     let fee_collector = Address::generate(&env);
     let seller = Address::generate(&env);
     let resolver = Address::generate(&env);
-    let token = env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
 
     let contract_id = env.register(Escrow, ());
     let client = EscrowClient::new(&env, &contract_id);
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let mut payees = Vec::new(&env);
-    payees.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &3600_u64);
+    payees.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
+    let payees_val = payees.into_val(&env);
+    let id = client.create_escrow_8(
+        &payees_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &100_i128,
+        &0_u32,
+        &3600_u64,
+    );
 
     client.pause_contract(&admin);
 
@@ -103,7 +131,9 @@ fn emergency_drain_fails_on_completed_escrow() {
     let buyer = Address::generate(&env);
     let resolver = Address::generate(&env);
     let token_admin = Address::generate(&env);
-    let token = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
 
     let token_client = token::StellarAssetClient::new(&env, &token);
     token_client.mint(&buyer, &10_000_i128);
@@ -113,8 +143,20 @@ fn emergency_drain_fails_on_completed_escrow() {
     client.initialize(&admin, &fee_collector, &0_u32);
 
     let mut payees = Vec::new(&env);
-    payees.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id = client.create_escrow(&payees, &None::<Address>, &resolver, &token, &100_i128, &0_u32, &0_u32, &1_u64);
+    payees.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
+    let payees_val = payees.into_val(&env);
+    let id = client.create_escrow_8(
+        &payees_val,
+        &None::<Address>,
+        &resolver,
+        &token,
+        &100_i128,
+        &0_u32,
+        &1_u64,
+    );
     client.fund_escrow(&id, &buyer);
 
     // advance ledger past shipping + dispute windows so auto_release is possible

@@ -2,8 +2,8 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger, Vec},
-    Address, Env,
+    testutils::{Address as _, Ledger},
+    Address, Env, IntoVal, Vec,
 };
 
 fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address) {
@@ -16,7 +16,9 @@ fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address) {
     let token_admin = Address::generate(&env);
     let fee_collector = Address::generate(&env);
 
-    let token_address = env.register_stellar_asset_contract_v2(token_admin.clone()).address();
+    let token_address = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
+        .address();
 
     (
         env,
@@ -53,9 +55,9 @@ fn test_fee_calculation_max_escrow_amount() {
         bps: 10_000,
     });
 
-    // Updated 9 arguments (added resolver_fee_bps & notes)
+    let payees_val = payees_54.into_val(&env);
     let id = client.create_escrow(
-        &payees_54,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -109,8 +111,9 @@ fn test_create_escrow_amount_exceeds_maximum() {
     });
 
     let amount = MAX_ESCROW_AMOUNT + 1;
+    let payees_val = payees.clone().into_val(&env);
     let res = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -122,8 +125,9 @@ fn test_create_escrow_amount_exceeds_maximum() {
     );
     assert_eq!(res, Err(Ok(ContractError::AmountExceedsMaximum)));
 
+    let payees_val = payees.into_val(&env);
     let res2 = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -151,8 +155,9 @@ fn test_create_escrow_invalid_amount() {
         bps: 10_000,
     });
 
+    let payees_val = payees.clone().into_val(&env);
     let res = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -164,8 +169,9 @@ fn test_create_escrow_invalid_amount() {
     );
     assert!(matches!(res, Err(Ok(ContractError::InvalidAmount))));
 
+    let payees_val = payees.into_val(&env);
     let res2 = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -193,8 +199,9 @@ fn test_fee_exceeds_max_clean_error() {
         bps: 10_000,
     });
 
+    let payees_val = payees.clone().into_val(&env);
     let _res_ignored = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -205,8 +212,9 @@ fn test_fee_exceeds_max_clean_error() {
         &None::<String>,
     );
 
+    let payees_val = payees.into_val(&env);
     let res = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -239,8 +247,9 @@ fn test_addition_overflow_escrow_counter() {
             .set(&DataKey::EscrowCounter, &u64::MAX);
     });
 
+    let payees_val = payees.into_val(&env);
     let res = client.try_create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -270,15 +279,16 @@ fn test_addition_overflow_shipping_window() {
         bps: 10_000,
     });
 
+    let payees_val = payees_53.into_val(&env);
     let escrow_id_1 = client.create_escrow(
-        &payees_53,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
         &amount,
         &300,
         &0_u32,
-        &u64::MAX,
+        &MAX_SHIPPING_WINDOW,
         &None::<String>,
     );
     env.ledger().set_timestamp(1000);
@@ -289,15 +299,16 @@ fn test_addition_overflow_shipping_window() {
         bps: 10_000,
     });
 
+    let payees_val = payees_52.into_val(&env);
     let escrow_id_2 = client.create_escrow(
-        &payees_52,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
         &amount,
         &300,
         &0_u32,
-        &u64::MAX,
+        &MAX_SHIPPING_WINDOW,
         &None::<String>,
     );
     client.fund_escrow(&escrow_id_2, &buyer);
@@ -342,23 +353,28 @@ fn test_deduct_and_transfer_max_amount() {
     let env = Env::default();
     env.mock_all_auths();
     let token_admin = Address::generate(&env);
-    let token = env.register_stellar_asset_contract(token_admin.clone());
+    let token_sac = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token = token_sac.address();
     let recipient = Address::generate(&env);
 
     let amount = i128::MAX;
-    let fee_bps = 300;
-    let expected_fee = (amount / 10_000) * fee_bps + (amount % 10_000) * fee_bps / 10_000;
+    let fee_bps: u32 = 300;
+    let expected_fee =
+        (amount / 10_000) * (fee_bps as i128) + (amount % 10_000) * (fee_bps as i128) / 10_000;
     let expected_net = amount - expected_fee;
 
+    let contract_id = env.register(Escrow, ());
     let sac = soroban_sdk::token::StellarAssetClient::new(&env, &token);
-    sac.mint(&env.current_contract_address(), &amount);
+    sac.mint(&contract_id, &amount);
 
-    let res = super::deduct_and_transfer(&env, &token, &recipient, amount, fee_bps);
+    let res = env.as_contract(&contract_id, || {
+        super::deduct_and_transfer(&env, &token, &recipient, amount, fee_bps)
+    });
     assert!(res.is_ok(), "deduct_and_transfer failed for max amount");
 
     let tc = soroban_sdk::token::Client::new(&env, &token);
     assert_eq!(tc.balance(&recipient), expected_net);
-    assert_eq!(tc.balance(&env.current_contract_address()), expected_fee);
+    assert_eq!(tc.balance(&contract_id), expected_fee);
 }
 
 #[test]
@@ -370,8 +386,8 @@ fn test_calculate_protocol_fee_i128_max_does_not_overflow() {
     assert!(result.is_ok());
 
     let (fee, net) = result.unwrap();
-    let expected_fee = (amount / 10_000) * fee_bps as i128
-        + (amount % 10_000) * fee_bps as i128 / 10_000;
+    let expected_fee =
+        (amount / 10_000) * fee_bps as i128 + (amount % 10_000) * fee_bps as i128 / 10_000;
     assert_eq!(fee, expected_fee);
     assert_eq!(net + fee, amount);
 }

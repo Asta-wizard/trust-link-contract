@@ -4,7 +4,7 @@ use crate::test_helpers::setup_contract;
 use crate::{EscrowState, Payee};
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _},
-    Address, Env,
+    Address, Env, IntoVal, String,
 };
 
 fn register_token(env: &Env) -> Address {
@@ -37,10 +37,14 @@ fn test_get_escrows_by_seller_single() {
     let resolver = Address::generate(&env);
 
     let mut payees = soroban_sdk::Vec::new(&env);
-    payees.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    payees.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
 
+    let payees_val = payees.into_val(&env);
     let id = client.create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -48,6 +52,7 @@ fn test_get_escrows_by_seller_single() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
 
     let escrows = client.get_escrows_by_seller(&seller);
@@ -68,10 +73,14 @@ fn test_get_escrows_by_seller_multiple() {
     let resolver = Address::generate(&env);
 
     let mut payees1 = soroban_sdk::Vec::new(&env);
-    payees1.push_back(Payee { address: seller1.clone(), bps: 10_000 });
+    payees1.push_back(Payee {
+        address: seller1.clone(),
+        bps: 10_000,
+    });
 
+    let payees1_val = payees1.into_val(&env);
     let id1 = client.create_escrow(
-        &payees1,
+        &payees1_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -79,13 +88,18 @@ fn test_get_escrows_by_seller_multiple() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
 
     let mut payees2 = soroban_sdk::Vec::new(&env);
-    payees2.push_back(Payee { address: seller1.clone(), bps: 10_000 });
+    payees2.push_back(Payee {
+        address: seller1.clone(),
+        bps: 10_000,
+    });
 
+    let payees2_val = payees2.into_val(&env);
     let id2 = client.create_escrow(
-        &payees2,
+        &payees2_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -93,13 +107,18 @@ fn test_get_escrows_by_seller_multiple() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
 
     let mut payees3 = soroban_sdk::Vec::new(&env);
-    payees3.push_back(Payee { address: seller2.clone(), bps: 10_000 });
+    payees3.push_back(Payee {
+        address: seller2.clone(),
+        bps: 10_000,
+    });
 
+    let payees3_val = payees3.into_val(&env);
     let id3 = client.create_escrow(
-        &payees3,
+        &payees3_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -107,6 +126,7 @@ fn test_get_escrows_by_seller_multiple() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
 
     let s1_escrows = client.get_escrows_by_seller(&seller1);
@@ -131,10 +151,14 @@ fn test_get_escrows_by_seller_matches_vendor() {
     let resolver = Address::generate(&env);
 
     let mut payees = soroban_sdk::Vec::new(&env);
-    payees.push_back(Payee { address: seller.clone(), bps: 10_000 });
+    payees.push_back(Payee {
+        address: seller.clone(),
+        bps: 10_000,
+    });
 
+    let payees_val = payees.into_val(&env);
     client.create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &token,
@@ -142,6 +166,7 @@ fn test_get_escrows_by_seller_matches_vendor() {
         &0_u32,
         &0_u32,
         &3600_u64,
+        &None::<String>,
     );
 
     let by_seller = client.get_escrows_by_seller(&seller);

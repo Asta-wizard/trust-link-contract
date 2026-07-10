@@ -2,7 +2,16 @@
 
 use crate::{ContractError, EscrowClient, Payee};
 use soroban_sdk::testutils::{Address as _, Events, Ledger as _};
-use soroban_sdk::{token, Address, Env, Vec};
+use soroban_sdk::{token, Address, Env, IntoVal, Vec};
+
+fn single_payee(env: &Env, address: &Address) -> Vec<Payee> {
+    let mut payees = Vec::new(env);
+    payees.push_back(Payee {
+        address: address.clone(),
+        bps: 10_000,
+    });
+    payees
+}
 
 fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address) {
     let env = Env::default();
@@ -42,13 +51,15 @@ fn test_amount_limits_enforced() {
     client.set_amount_limits(&admin, &min_limit, &max_limit);
 
     // Test below minimum
-    let res = client.try_create_escrow(
-        &seller,
+    let seller_val = seller.clone().into_val(&env);
+    let res = client.try_create_escrow_8(
+        &seller_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
         &499,
         &100,
+        &0_u32,
         &3600,
     );
     assert_eq!(res, Err(Ok(ContractError::AmountBelowMinimum)));
@@ -56,8 +67,9 @@ fn test_amount_limits_enforced() {
     // Test exactly minimum
     let mut payees_2 = Vec::new(&env);
     payees_2.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id1 = client.create_escrow(
-        &payees_2,
+    let payees_2_val = payees_2.into_val(&env);
+    let id1 = client.create_escrow_8(
+        &payees_2_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
@@ -71,8 +83,9 @@ fn test_amount_limits_enforced() {
     // Test exactly maximum
     let mut payees_1 = Vec::new(&env);
     payees_1.push_back(Payee { address: seller.clone(), bps: 10_000 });
-    let id2 = client.create_escrow(
-        &payees_1,
+    let payees_1_val = payees_1.into_val(&env);
+    let id2 = client.create_escrow_8(
+        &payees_1_val,
         &Some(buyer.clone()),
         &resolver,
         &token,
@@ -84,13 +97,15 @@ fn test_amount_limits_enforced() {
     assert_eq!(id2, 2);
 
     // Test above maximum
-    let res = client.try_create_escrow(
-        &seller,
+    let seller_val_2 = seller.clone().into_val(&env);
+    let res = client.try_create_escrow_8(
+        &seller_val_2,
         &Some(buyer.clone()),
         &resolver,
         &token,
         &5001,
         &100,
+        &0_u32,
         &3600,
     );
     assert_eq!(res, Err(Ok(ContractError::AmountExceedsMaximum)));

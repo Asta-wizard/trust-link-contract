@@ -46,6 +46,10 @@ fn test_resolve_dispute_refund_no_buyer_returns_error() {
         status: DisputeStatus::Active,
         disputed_at: env.ledger().timestamp(),
         tracking_id: None,
+        resolution: 0,
+        resolved_by: None,
+        appeal_count: 0,
+        resolved_at: 0,
     };
     env.storage().persistent().set(&DataKey::Dispute(id), &dispute);
 

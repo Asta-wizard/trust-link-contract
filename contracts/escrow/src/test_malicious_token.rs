@@ -9,14 +9,14 @@
 //! buyers, and no escrow may advance to a state it did not legitimately reach.
 
 use crate::malicious_token::{Attack, MaliciousToken, MaliciousTokenClient};
-use crate::test_helpers::setup_contract;
-use crate::{EscrowState, Payee};
-use soroban_sdk::{testutils::Address as _, Address, Env, String as SorobanString, Vec};
+use crate::{Escrow, EscrowState, Payee};
+extern crate alloc;
+use alloc::boxed::Box;
+use soroban_sdk::{testutils::Address as _, Address, Env, IntoVal, String as SorobanString, Vec};
 
 const AMOUNT: i128 = 1_000;
 
 struct Fixture {
-    env: Env,
     contract_id: Address,
     client: crate::EscrowClient<'static>,
     mclient: MaliciousTokenClient<'static>,
@@ -24,34 +24,40 @@ struct Fixture {
     buyer: Address,
     fee_collector: Address,
     id: u64,
+    env: &'static mut Env,
 }
 
 /// Create an initialized escrow whose token is a freshly-minted malicious token,
 /// with a single created (not yet funded) escrow paying the seller in full.
 fn setup() -> Fixture {
-    let env = Env::default();
+    let env = Box::leak(Box::new(Env::default()));
     env.mock_all_auths();
 
-    let (contract_id, client, _admin, fee_collector) = setup_contract(&env);
+    let contract_id = env.register(Escrow, ());
+    let client = crate::EscrowClient::new(env, &contract_id);
+    let admin = Address::generate(env);
+    let fee_collector = Address::generate(env);
+    client.initialize(&admin, &fee_collector, &0_u32);
 
     let mtoken = env.register(MaliciousToken, ());
-    let mclient = MaliciousTokenClient::new(&env, &mtoken);
+    let mclient = MaliciousTokenClient::new(env, &mtoken);
 
-    let seller = Address::generate(&env);
-    let buyer = Address::generate(&env);
-    let resolver = Address::generate(&env);
+    let seller = Address::generate(env);
+    let buyer = Address::generate(env);
+    let resolver = Address::generate(env);
 
     // Start benign so funding works; individual tests arm the attack later.
     mclient.set_attack(&Attack::None);
     mclient.mint(&buyer, &AMOUNT);
 
-    let mut payees = Vec::new(&env);
+    let mut payees = Vec::new(env);
     payees.push_back(Payee {
         address: seller.clone(),
         bps: 10_000,
     });
+    let payees_val = payees.into_val(env);
     let id = client.create_escrow(
-        &payees,
+        &payees_val,
         &None::<Address>,
         &resolver,
         &mtoken,
@@ -59,10 +65,10 @@ fn setup() -> Fixture {
         &0_u32,
         &0_u32,
         &3_600_u64,
+        &None::<SorobanString>,
     );
 
     Fixture {
-        env,
         contract_id,
         client,
         mclient,
@@ -70,6 +76,7 @@ fn setup() -> Fixture {
         buyer,
         fee_collector,
         id,
+        env,
     }
 }
 
@@ -81,7 +88,7 @@ fn fund_and_ship(f: &Fixture) {
     f.client.mark_shipped(
         &f.seller,
         &f.id,
-        &SorobanString::from_str(&f.env, "TRACK-402"),
+        &SorobanString::from_str(f.env, "TRACK-402"),
     );
     assert_eq!(f.mclient.balance(&f.contract_id), AMOUNT);
 }
