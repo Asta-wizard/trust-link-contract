@@ -2111,7 +2111,7 @@ impl Escrow {
             escrow_id,
             caller.clone(),
             resolution.clone(),
-            votes.len() as u32,
+            votes.len(),
             threshold,
         );
 
@@ -2161,7 +2161,7 @@ impl Escrow {
             escrow_id,
             caller.clone(),
             resolution.clone(),
-            votes.len() as u32,
+            votes.len(),
             threshold,
         );
 
