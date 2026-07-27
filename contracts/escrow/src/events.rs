@@ -155,30 +155,6 @@ pub fn emit_contract_unpaused(env: &Env, admin: Address) {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FeesWithdrawn {
-    pub schema_version: u32,
-    pub token: Address,
-    pub to: Address,
-    pub amount: i128,
-    pub timestamp: u64,
-}
-
-/// Topic: `(symbol_short!("Fee"), symbol_short!("Withdrawn"), to.clone(),)`, data: `FeesWithdrawn`.
-pub fn emit_fees_withdrawn(env: &Env, token: Address, to: Address, amount: i128) {
-    env.events().publish(
-        (symbol_short!("Fee"), symbol_short!("Withdrawn"), to.clone()),
-        FeesWithdrawn {
-            schema_version: EVENT_SCHEMA_VERSION,
-            token,
-            to,
-            amount,
-            timestamp: env.ledger().timestamp(),
-        },
-    );
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EscrowCreated {
     pub schema_version: u32,
     pub escrow_id: u64,
@@ -651,107 +627,6 @@ pub fn emit_resolver_rotated(
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MilestoneEscrowCreated {
-    pub escrow_id: u64,
-    pub milestone_count: u32,
-    pub total_amount: i128,
-    pub timestamp: u64,
-}
-
-/// Topic: `("milestone_escrow_created",)`, data: `MilestoneEscrowCreated`.
-pub fn emit_milestone_escrow_created(
-    env: &Env,
-    escrow_id: u64,
-    milestone_count: u32,
-    total_amount: i128,
-) {
-    env.events().publish(
-        (Symbol::new(env, "milestone_escrow_created"),),
-        MilestoneEscrowCreated {
-            escrow_id,
-            milestone_count,
-            total_amount,
-            timestamp: env.ledger().timestamp(),
-        },
-    );
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MilestoneReleased {
-    pub escrow_id: u64,
-    pub milestone_index: u32,
-    pub seller: Address,
-    pub amount: i128,
-    pub remaining_milestones: u32,
-    pub released_at: u64,
-}
-
-/// Topic: `("milestone_released", escrow_id)`, data: `MilestoneReleased`.
-///
-/// `escrow_id` is kept in the topic (unlike most single-topic events here) so
-/// off-chain indexers can filter the release history of one specific escrow
-/// without scanning every milestone release on the contract.
-pub fn emit_milestone_released(
-    env: &Env,
-    escrow_id: u64,
-    milestone_index: u32,
-    seller: Address,
-    amount: i128,
-    remaining_milestones: u32,
-) {
-    env.events().publish(
-        (Symbol::new(env, "milestone_released"), escrow_id),
-        MilestoneReleased {
-            escrow_id,
-            milestone_index,
-            seller,
-            amount,
-            remaining_milestones,
-            released_at: env.ledger().timestamp(),
-        },
-    );
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EscrowTrancheFunded {
-    pub escrow_id: u64,
-    pub buyer: Address,
-    pub tranche_amount: i128,
-    pub funded_amount: i128,
-    pub total_amount: i128,
-    pub timestamp: u64,
-}
-
-/// Topic: `("escrow_tranche_funded", escrow_id)`, data: `EscrowTrancheFunded`.
-///
-/// Emitted for a partial-funding call that does *not* yet complete funding.
-/// Once `funded_amount` reaches `total_amount`, `emit_escrow_funded` fires
-/// instead (on that same call) - exactly as for a single lump-sum payment.
-pub fn emit_escrow_tranche_funded(
-    env: &Env,
-    escrow_id: u64,
-    buyer: Address,
-    tranche_amount: i128,
-    funded_amount: i128,
-    total_amount: i128,
-) {
-    env.events().publish(
-        (Symbol::new(env, "escrow_tranche_funded"), escrow_id),
-        EscrowTrancheFunded {
-            escrow_id,
-            buyer,
-            tranche_amount,
-            funded_amount,
-            total_amount,
-            timestamp: env.ledger().timestamp(),
-        },
-    );
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TokenAllowlistUpdated {
     pub schema_version: u32,
     pub token: Address,
@@ -1033,42 +908,6 @@ pub fn emit_refund_approved(
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RefundDeniedEvent {
-    pub schema_version: u32,
-    pub escrow_id: u64,
-    pub seller: Address,
-    pub timestamp: u64,
-    pub prev_state: crate::EscrowState,
-    pub new_state: crate::EscrowState,
-}
-
-/// Topic: `(symbol_short!("Refund"), symbol_short!("Denied"), seller.clone(),)`, data: `RefundDeniedEvent`.
-pub fn emit_refund_denied(
-    env: &Env,
-    escrow_id: u64,
-    seller: Address,
-    prev_state: crate::EscrowState,
-    new_state: crate::EscrowState,
-) {
-    env.events().publish(
-        (
-            symbol_short!("Refund"),
-            symbol_short!("Denied"),
-            seller.clone(),
-        ),
-        RefundDeniedEvent {
-            schema_version: EVENT_SCHEMA_VERSION,
-            escrow_id,
-            seller,
-            timestamp: env.ledger().timestamp(),
-            prev_state,
-            new_state,
-        },
-    );
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractUpgradedEvent {
     pub schema_version: u32,
     pub admin: Address,
@@ -1084,6 +923,223 @@ pub fn emit_contract_upgraded(env: &Env, admin: Address, new_wasm_hash: soroban_
             schema_version: EVENT_SCHEMA_VERSION,
             admin,
             new_wasm_hash,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StorageMigratedEvent {
+    pub schema_version: u32,
+    pub admin: Address,
+    pub from_version: u32,
+    pub to_version: u32,
+    pub timestamp: u64,
+}
+
+/// Topic: `("storage_migrated",)`, data: `StorageMigratedEvent`.
+pub fn emit_storage_migrated(env: &Env, admin: Address, from_version: u32, to_version: u32) {
+    env.events().publish(
+        (Symbol::new(env, "storage_migrated"),),
+        StorageMigratedEvent {
+            schema_version: EVENT_SCHEMA_VERSION,
+            admin,
+            from_version,
+            to_version,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TtlExtensionUpdated {
+    pub schema_version: u32,
+    pub old_ledgers: u32,
+    pub new_ledgers: u32,
+    pub caller: Address,
+    pub timestamp: u64,
+}
+
+/// Topic: `(symbol_short!("TtlExt"), symbol_short!("Updated"),)`, data: `TtlExtensionUpdated`.
+pub fn emit_ttl_extension_updated(env: &Env, old_ledgers: u32, new_ledgers: u32, caller: Address) {
+    env.events().publish(
+        (symbol_short!("TtlExt"), symbol_short!("Updated")),
+        TtlExtensionUpdated {
+            schema_version: EVENT_SCHEMA_VERSION,
+            old_ledgers,
+            new_ledgers,
+            caller,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AmountLimitsUpdated {
+    pub schema_version: u32,
+    pub old_min_amount: i128,
+    pub new_min_amount: i128,
+    pub old_max_amount: i128,
+    pub new_max_amount: i128,
+    pub caller: Address,
+    pub timestamp: u64,
+}
+
+/// Topic: `(symbol_short!("AmtLimit"), symbol_short!("Updated"),)`, data: `AmountLimitsUpdated`.
+#[allow(clippy::too_many_arguments)]
+pub fn emit_amount_limits_updated(
+    env: &Env,
+    old_min_amount: i128,
+    new_min_amount: i128,
+    old_max_amount: i128,
+    new_max_amount: i128,
+    caller: Address,
+) {
+    env.events().publish(
+        (symbol_short!("AmtLimit"), symbol_short!("Updated")),
+        AmountLimitsUpdated {
+            schema_version: EVENT_SCHEMA_VERSION,
+            old_min_amount,
+            new_min_amount,
+            old_max_amount,
+            new_max_amount,
+            caller,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActionPausedEvent {
+    pub schema_version: u32,
+    pub action: Symbol,
+    pub caller: Address,
+    pub timestamp: u64,
+}
+
+/// Topic: `(symbol_short!("Action"), symbol_short!("Paused"), action.clone(),)`, data: `ActionPausedEvent`.
+pub fn emit_action_paused(env: &Env, action: Symbol, caller: Address) {
+    env.events().publish(
+        (
+            symbol_short!("Action"),
+            symbol_short!("Paused"),
+            action.clone(),
+        ),
+        ActionPausedEvent {
+            schema_version: EVENT_SCHEMA_VERSION,
+            action,
+            caller,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActionUnpausedEvent {
+    pub schema_version: u32,
+    pub action: Symbol,
+    pub caller: Address,
+    pub timestamp: u64,
+}
+
+/// Topic: `(symbol_short!("Action"), symbol_short!("Unpaused"), action.clone(),)`, data: `ActionUnpausedEvent`.
+pub fn emit_action_unpaused(env: &Env, action: Symbol, caller: Address) {
+    env.events().publish(
+        (
+            symbol_short!("Action"),
+            symbol_short!("Unpaused"),
+            action.clone(),
+        ),
+        ActionUnpausedEvent {
+            schema_version: EVENT_SCHEMA_VERSION,
+            action,
+            caller,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolverApproved {
+    pub schema_version: u32,
+    pub resolver: Address,
+    pub caller: Address,
+    pub timestamp: u64,
+}
+
+/// Topic: `(symbol_short!("Resolver"), symbol_short!("Approved"), resolver.clone(),)`, data: `ResolverApproved`.
+pub fn emit_resolver_approved(env: &Env, resolver: Address, caller: Address) {
+    env.events().publish(
+        (
+            symbol_short!("Resolver"),
+            symbol_short!("Approved"),
+            resolver.clone(),
+        ),
+        ResolverApproved {
+            schema_version: EVENT_SCHEMA_VERSION,
+            resolver,
+            caller,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolverRemoved {
+    pub schema_version: u32,
+    pub resolver: Address,
+    pub caller: Address,
+    pub timestamp: u64,
+}
+
+/// Topic: `(symbol_short!("Resolver"), symbol_short!("Removed"), resolver.clone(),)`, data: `ResolverRemoved`.
+pub fn emit_resolver_removed(env: &Env, resolver: Address, caller: Address) {
+    env.events().publish(
+        (
+            symbol_short!("Resolver"),
+            symbol_short!("Removed"),
+            resolver.clone(),
+        ),
+        ResolverRemoved {
+            schema_version: EVENT_SCHEMA_VERSION,
+            resolver,
+            caller,
+            timestamp: env.ledger().timestamp(),
+        },
+    );
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolverStrictUpdated {
+    pub schema_version: u32,
+    pub old_strict: bool,
+    pub new_strict: bool,
+    pub caller: Address,
+    pub timestamp: u64,
+}
+
+/// Topic: `(symbol_short!("ResStrct"), symbol_short!("Updated"),)`, data: `ResolverStrictUpdated`.
+pub fn emit_resolver_strict_updated(
+    env: &Env,
+    old_strict: bool,
+    new_strict: bool,
+    caller: Address,
+) {
+    env.events().publish(
+        (symbol_short!("ResStrct"), symbol_short!("Updated")),
+        ResolverStrictUpdated {
+            schema_version: EVENT_SCHEMA_VERSION,
+            old_strict,
+            new_strict,
+            caller,
             timestamp: env.ledger().timestamp(),
         },
     );
