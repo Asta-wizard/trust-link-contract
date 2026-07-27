@@ -784,7 +784,6 @@ pub(crate) fn create_escrow_internal(
         escrow.resolver_fee_bps,
         escrow.shipping_window,
         crate::EscrowState::Pending,
-        crate::EscrowState::Pending,
     );
     Ok(escrow_id)
 }
