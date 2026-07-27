@@ -2120,6 +2120,11 @@ impl Escrow {
         Ok(())
     }
 
+    /// Releases funds early via mutual consent: requires auth from both the
+    /// primary payee and the buyer in the same call. Only valid from
+    /// `Funded` or `Shipped` state, and only if no dispute has been raised.
+    /// Reverts with `InvalidState` otherwise. Transfers funds (minus
+    /// protocol fee) and emits `escrow_completed`.
     pub fn co_signed_release(
         env: Env,
         caller: Address,
@@ -2678,6 +2683,9 @@ impl Escrow {
             .unwrap_or(soroban_sdk::Vec::new(&env))
     }
 
+    /// Sets the platform fee (in basis points) charged on escrow settlements.
+    /// Only callable by admin. Reverts with `PlatformFeeExceedsMax` if
+    /// `fee_bps` exceeds `MAX_PLATFORM_FEE_BPS`. Emits `platform_fee_updated`.
     pub fn set_platform_fee(env: Env, caller: Address, fee_bps: u32) -> Result<(), ContractError> {
         caller.require_auth();
         let admin = require_admin(&env)?;
@@ -2696,6 +2704,9 @@ impl Escrow {
         Ok(())
     }
 
+    /// Sets the address that collects platform fees. Only callable by admin.
+    /// Reverts with `InvalidAddress` if `treasury` is the zero address.
+    /// Emits `treasury_updated`.
     pub fn set_treasury(env: Env, caller: Address, treasury: Address) -> Result<(), ContractError> {
         caller.require_auth();
         let admin = require_admin(&env)?;
@@ -2726,6 +2737,13 @@ impl Escrow {
         read_treasury(&env)
     }
 
+    /// Creates an escrow that pays out multiple tokens ("basket") to a single
+    /// seller instead of the single-token flow used by `create_escrow`.
+    /// `tokens` and `amounts` must be the same non-empty length and every
+    /// token must pass the allowlist check (if enabled). The primary
+    /// `EscrowData` record tracks `tokens[0]`/`amounts[0]`; the full basket
+    /// is stored separately and readable via `get_basket_tokens`. Must be
+    /// funded with `fund_basket_escrow`. Emits `basket_escrow_created`.
     pub fn create_basket_escrow(
         env: Env,
         seller: Address,
@@ -2902,6 +2920,9 @@ impl Escrow {
         load_escrow(&env, escrow_id)
     }
 
+    /// Returns the full state transition history for an escrow as
+    /// `(state, ledger_timestamp)` pairs, oldest first. Reverts if the
+    /// escrow does not exist.
     pub fn get_state_history(
         env: Env,
         escrow_id: u64,
@@ -3204,6 +3225,10 @@ impl Escrow {
         Ok(())
     }
 
+    /// Creates multiple single-token escrows for `seller` in one call, each
+    /// described by an `EscrowInput`. Returns the created escrow IDs in the
+    /// same order as the input `escrows`. Each escrow still starts in
+    /// `Pending` state and must be funded individually via `fund_escrow`.
     pub fn batch_create_escrow(
         env: Env,
         seller: Address,
@@ -3237,6 +3262,9 @@ impl Escrow {
         Ok(escrow_ids)
     }
 
+    /// Sets the global minimum and maximum escrow amount. Only callable by
+    /// admin. Reverts with `InvalidAmount` if `min_amount <= 0` or
+    /// `max_amount < min_amount`.
     pub fn set_amount_limits(
         env: Env,
         caller: Address,
