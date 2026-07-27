@@ -316,7 +316,12 @@ trust-link-contract/
         ├── fuzz/                  — fuzz testing targets
         ├── tests/                 — integration tests
         └── src/
-            ├── lib.rs             — contract implementation
+            ├── lib.rs             — module wiring, re-exports, constants, the `Escrow` contract type
+            ├── instructions.rs    — creation/funding/delivery/cancellation/batch entry points
+            ├── admin.rs           — pause, fees, upgrades, token allowlist, resolver registry
+            ├── disputes.rs        — raise/vote/finalize/appeal entry points
+            ├── queries.rs         — read-only views over escrow/fee/contract state
+            ├── internal.rs        — shared private helpers (storage, validation, fee math)
             ├── types.rs           — data types and keys
             ├── errors.rs          — error codes
             ├── events.rs          — event helpers
