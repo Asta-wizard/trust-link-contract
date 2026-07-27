@@ -21,6 +21,17 @@ pub use crate::events::{
     emit_contract_unpaused, emit_contract_upgraded, emit_delivery_proposal_cancelled,
     emit_delivery_proposed, emit_delivery_recorded, emit_dispute_appealed,
     emit_dispute_pending_finalization, emit_dispute_raised, emit_dispute_resolved,
+    emit_emergency_drain, emit_escrow_cancelled, emit_escrow_completed, emit_escrow_created,
+    emit_escrow_funded, emit_escrow_shipped, emit_fee_collector_updated, emit_fee_updated,
+    emit_platform_fee_updated, emit_protocol_fee_updated, emit_refund_approved,
+    emit_refund_requested, emit_resolver_approved, emit_resolver_removed, emit_resolver_rotated,
+    emit_resolver_strict_updated, emit_resolver_vote_recorded, emit_storage_migrated,
+    emit_token_allowlist_updated, emit_treasury_updated, emit_ttl_extension_updated,
+    ActionPausedEvent, ActionUnpausedEvent, AdminRotated, AmountLimitsUpdated,
+    ArbitrationFeeUpdated, AutoReleased, ContractInitialized, ContractPausedEvent,
+    ContractUnpausedEvent, ContractUpgradedEvent, DeliveryRecorded, DisputeRaised,
+    DisputeResolved, EmergencyDrain, EscrowCancelled, EscrowCompleted, EscrowCreated,
+    EscrowFunded, EscrowShipped, FeeCollectorUpdated, FeeUpdated, ProtocolFeeUpdated,
     emit_escrow_cancelled, emit_escrow_completed, emit_escrow_created, emit_escrow_funded,
     emit_escrow_shipped, emit_fee_updated, emit_platform_fee_updated, emit_protocol_fee_updated,
     emit_refund_approved, emit_refund_requested, emit_resolver_approved, emit_resolver_removed,
@@ -145,7 +156,10 @@ pub const MAX_SHIPPING_WINDOW: u64 = 63_072_000;
 /// Maximum escrow amount intentionally capped to
 /// preserve arithmetic safety for fee calculations
 /// and aggregate accounting operations.
-pub const MAX_ESCROW_AMOUNT: i128 = i128::MAX / 10_000;
+pub const MAX_ESCROW_AMOUNT: i128 = i128::MAX / BASIS_POINTS as i128;
+
+/// Basis points denominator (100% = 10_000 basis points).
+pub const BASIS_POINTS: u32 = 10_000;
 
 #[contract]
 pub struct Escrow;
@@ -336,6 +350,7 @@ fn validate_payees(env: &Env, payees: &Vec<Payee>) -> Result<(), ContractError> 
         }
     }
 
+    if total_bps != BASIS_POINTS {
     if total_bps != 10_000 {
         return Err(ContractError::InvalidAmount);
     }
@@ -418,14 +433,25 @@ fn get_ttl_extension(env: &Env) -> u32 {
         .unwrap_or(DEFAULT_TTL_EXTENSION)
 }
 
-fn save_escrow(env: &Env, id: u64, escrow: &EscrowData) {
+/// Saves the escrow and records a state-history entry if the state changed.
+/// Callers that already know the pre-mutation state (most do — they hold it
+/// from `load_escrow` before overwriting `escrow.state`) should pass it via
+/// `prev_state` to avoid a redundant persistent read of the same key that
+/// `load_escrow` already paid for. Pass `None` only when there is no prior
+/// escrow to compare against (e.g. first save on creation).
+fn save_escrow(env: &Env, id: u64, escrow: &EscrowData, prev_state: Option<&EscrowState>) {
     let key = DataKey::Escrow(id);
     let ext = get_ttl_extension(env);
-    let previous: Option<EscrowData> = env.storage().persistent().get(&key);
-    let state_changed = previous
-        .as_ref()
-        .map(|existing| existing.state != escrow.state)
-        .unwrap_or(true);
+    let state_changed = match prev_state {
+        Some(prev) => *prev != escrow.state,
+        None => {
+            let previous: Option<EscrowData> = env.storage().persistent().get(&key);
+            previous
+                .as_ref()
+                .map(|existing| existing.state != escrow.state)
+                .unwrap_or(true)
+        }
+    };
 
     env.storage().persistent().set(&key, escrow);
     env.storage().persistent().extend_ttl(&key, ext / 2, ext);
@@ -457,6 +483,9 @@ fn append_state_history(env: &Env, id: u64, state: &EscrowState) {
         .unwrap_or_else(|| Vec::new(env));
 
     history.push_back((state.clone(), env.ledger().timestamp()));
+    while history.len() > MAX_STATE_HISTORY_ENTRIES {
+        history.pop_front();
+    }
     env.storage().persistent().set(&key, &history);
     env.storage().persistent().extend_ttl(&key, ext / 2, ext);
 }
@@ -559,6 +588,7 @@ fn distribute_to_payees(
         let payee_amount = amount
             .checked_mul(payee.bps as i128)
             .ok_or(ContractError::ArithmeticError)?
+            .checked_div(BASIS_POINTS as i128)
             .checked_div(10_000)
             .ok_or(ContractError::ArithmeticError)?;
 
@@ -757,7 +787,7 @@ fn create_escrow_internal(
         notes,
     };
 
-    save_escrow(env, escrow_id, &escrow);
+    save_escrow(env, escrow_id, &escrow, None);
 
     let first_payee_addr = payees
         .get(0)
@@ -780,7 +810,6 @@ fn create_escrow_internal(
         escrow.resolver_fee_bps,
         escrow.shipping_window,
         crate::EscrowState::Pending,
-        crate::EscrowState::Pending,
     );
     Ok(escrow_id)
 }
@@ -802,6 +831,7 @@ fn execute_resolution_transition(
     let resolver_fee =
         crate::helpers::payout::calculate_fee(escrow.amount, escrow.resolver_fee_bps)?;
 
+    let prev_state = escrow.state.clone();
     let mut updated_escrow = escrow;
     updated_escrow.amount = updated_escrow
         .amount
@@ -821,6 +851,20 @@ fn execute_resolution_transition(
             .checked_add(arbitration_fee)
             .ok_or(ContractError::ArithmeticError)?,
     );
+
+    let fee_collector: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::FeeCollector)
+        .expect("fee collector not set");
+
+    if arbitration_fee > 0 {
+        token::Client::new(env, &updated_escrow.token).transfer(
+            &env.current_contract_address(),
+            &fee_collector,
+            &arbitration_fee,
+        );
+    }
 
     // Pay resolver fee immediately
     if resolver_fee > 0 {
@@ -844,7 +888,7 @@ fn execute_resolution_transition(
 
     updated_escrow.state = EscrowState::PendingFinalization;
 
-    save_escrow(env, escrow_id, &updated_escrow);
+    save_escrow(env, escrow_id, &updated_escrow, Some(&prev_state));
     save_dispute(env, escrow_id, &dispute_data);
     save_resolver_votes(env, escrow_id, &votes);
 
@@ -881,6 +925,7 @@ impl Escrow {
             let mut p_vec = Vec::new(&env);
             p_vec.push_back(Payee {
                 address: seller_address,
+                bps: BASIS_POINTS,
                 bps: 10_000,
             });
             p_vec
@@ -994,6 +1039,11 @@ impl Escrow {
         );
         env.storage().instance().set(&DataKey::EscrowCounter, &1u64);
         env.storage().instance().set(&DataKey::Paused, &false);
+        // Fresh deployments already match the current schema, so `migrate` is a
+        // no-op for them.
+        env.storage()
+            .instance()
+            .set(&DataKey::StorageVersion, &STORAGE_VERSION);
 
         emit_contract_initialized(&env, admin, fee_collector, arbitration_fee_bps);
         Ok(())
@@ -1099,6 +1149,49 @@ impl Escrow {
         Ok(())
     }
 
+    /// Returns the schema version of the data currently in storage.
+    ///
+    /// Deployments that predate storage versioning report `0`. Compare against
+    /// [`STORAGE_VERSION`] to decide whether [`Escrow::migrate`] must run.
+    pub fn get_storage_version(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::StorageVersion)
+            .unwrap_or(0)
+    }
+
+    /// Migrates storage to [`STORAGE_VERSION`] after a WASM upgrade.
+    ///
+    /// `upgrade` only swaps the code; any schema change must be applied here in
+    /// a separate transaction immediately afterwards. The function is
+    /// admin-only and idempotent: once storage is already at the current
+    /// version it returns `AlreadyInitialized` instead of re-running steps, so
+    /// a retried deployment cannot corrupt data.
+    ///
+    /// Each version bump appends one step below and never rewrites a previous
+    /// one — see `docs/UPGRADES.md` for the full strategy.
+    pub fn migrate(env: Env, caller: Address) -> Result<(), ContractError> {
+        caller.require_auth();
+        let admin = require_admin_caller(&env, &caller)?;
+
+        let from = Self::get_storage_version(env.clone());
+        if from >= STORAGE_VERSION {
+            return Err(ContractError::AlreadyInitialized);
+        }
+
+        // v0 -> v1: versioning was introduced without changing any stored
+        // layout, so existing `EscrowData` entries are read back unchanged and
+        // only the version marker is written.
+
+        env.storage()
+            .instance()
+            .set(&DataKey::StorageVersion, &STORAGE_VERSION);
+        storage::extend_instance_ttl(&env);
+
+        emit_storage_migrated(&env, admin, from, STORAGE_VERSION);
+        Ok(())
+    }
+
     /// Updates the protocol fee. Only callable by admin.
     pub fn set_fee(env: Env, caller: Address, fee_bps: u32) -> Result<(), ContractError> {
         caller.require_auth();
@@ -1165,6 +1258,7 @@ impl Escrow {
         env.storage()
             .instance()
             .set(&DataKey::FeeCollector, &new_collector);
+        emit_fee_collector_updated(&env, old_collector, new_collector);
         env.events()
             .publish(("FeeCollectorUpdated",), (old_collector, new_collector));
         Ok(())
@@ -1192,6 +1286,7 @@ impl Escrow {
         let mut payees = Vec::new(&env);
         payees.push_back(Payee {
             address: seller,
+            bps: BASIS_POINTS,
             bps: 10_000,
         });
         let escrow_id = create_escrow_internal(
@@ -1282,6 +1377,7 @@ impl Escrow {
         }
 
         let now = env.ledger().timestamp();
+        let prev_state = escrow.state.clone();
         escrow.buyer = Some(buyer.clone());
         escrow.state = EscrowState::Funded;
         escrow.funded_at = now;
@@ -1304,7 +1400,7 @@ impl Escrow {
             .persistent()
             .extend_ttl(&buyer_key, ext / 2, ext);
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         emit_escrow_funded(
             &env,
             escrow_id,
@@ -1366,7 +1462,7 @@ impl Escrow {
             resolved_at: 0,
         };
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         save_dispute(&env, escrow_id, &dispute_data);
         increment_counter(&env, &DataKey::TotalDisputed)?;
         emit_dispute_raised(
@@ -1438,6 +1534,7 @@ impl Escrow {
         let mut payees = Vec::new(&env);
         payees.push_back(Payee {
             address: seller.clone(),
+            bps: BASIS_POINTS,
             bps: 10_000,
         });
         let escrow = EscrowData {
@@ -1458,7 +1555,7 @@ impl Escrow {
             notes: None,
         };
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, None);
 
         let mut vendor_escrows = storage::read_vendor_escrow_index(&env, &seller);
         vendor_escrows.push_back(escrow_id);
@@ -1484,7 +1581,7 @@ impl Escrow {
                 escrow.resolver_fee_bps,
                 escrow.shipping_window,
                 crate::EscrowState::Pending,
-                crate::EscrowState::Pending,
+            
             );
         }
 
@@ -1598,6 +1695,7 @@ impl Escrow {
         let mut payees = Vec::new(&env);
         payees.push_back(Payee {
             address: seller.clone(),
+            bps: BASIS_POINTS,
             bps: 10_000,
         });
         let escrow = EscrowData {
@@ -1618,7 +1716,7 @@ impl Escrow {
             notes: None,
         };
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, None);
 
         let mut vendor_escrows = storage::read_vendor_escrow_index(&env, &seller);
         vendor_escrows.push_back(escrow_id);
@@ -1636,7 +1734,6 @@ impl Escrow {
             escrow.fee_bps,
             escrow.resolver_fee_bps,
             escrow.shipping_window,
-            crate::EscrowState::Pending,
             crate::EscrowState::Pending,
         );
 
@@ -1690,7 +1787,7 @@ impl Escrow {
             return Err(ContractError::InvalidState);
         }
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         let first_payee_addr = escrow
             .payees
             .get(0)
@@ -1740,7 +1837,7 @@ impl Escrow {
 
         let prev_state = escrow.state.clone();
         escrow.state = EscrowState::Canceled;
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
 
         emit_escrow_cancelled(
             &env,
@@ -1812,7 +1909,7 @@ impl Escrow {
             .clone()
             .unwrap_or(String::from_str(&env, ""));
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         emit_escrow_shipped(
             &env,
             escrow_id,
@@ -1849,7 +1946,9 @@ impl Escrow {
 
         let delivered_at = env.ledger().timestamp();
         escrow.delivered_at = Some(delivered_at);
-        save_escrow(&env, escrow_id, &escrow);
+        // escrow.state is untouched by this call, so the pre-mutation state
+        // is simply the current one.
+        save_escrow(&env, escrow_id, &escrow, Some(&escrow.state));
 
         emit_delivery_recorded(&env, escrow_id, delivered_at);
         Ok(())
@@ -1907,7 +2006,7 @@ impl Escrow {
 
         let prev_state = escrow.state.clone();
         escrow.state = EscrowState::Completed;
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         increment_counter(&env, &DataKey::TotalCompleted)?;
 
         emit_escrow_completed(
@@ -1982,7 +2081,7 @@ impl Escrow {
         let mut updated = escrow;
         updated.state = EscrowState::Completed;
 
-        save_escrow(&env, escrow_id, &updated);
+        save_escrow(&env, escrow_id, &updated, Some(&prev_state));
         increment_counter(&env, &DataKey::TotalCompleted)?;
         emit_escrow_completed(
             &env,
@@ -2218,7 +2317,7 @@ impl Escrow {
 
         let prev_state = escrow.state.clone();
         escrow.state = EscrowState::Completed;
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         increment_counter(&env, &DataKey::TotalCompleted)?;
 
         emit_auto_released(
@@ -2338,7 +2437,7 @@ impl Escrow {
         };
         escrow.state = new_state.clone();
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
 
         dispute_data.status = DisputeStatus::Resolved;
         save_dispute(&env, escrow_id, &dispute_data);
@@ -2406,6 +2505,7 @@ impl Escrow {
             return Err(ContractError::NotAuthorized);
         }
 
+        let prev_state = escrow.state.clone();
         escrow.state = EscrowState::Disputed;
 
         let mut updated_dispute = dispute_data;
@@ -2420,7 +2520,7 @@ impl Escrow {
                 .remove(&DataKey::ResolverVotes(escrow_id));
         }
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         save_dispute(&env, escrow_id, &updated_dispute);
 
         emit_dispute_appealed(&env, escrow_id, caller);
@@ -2699,6 +2799,7 @@ impl Escrow {
         let mut basket_payees = Vec::new(&env);
         basket_payees.push_back(Payee {
             address: seller.clone(),
+            bps: BASIS_POINTS,
             bps: 10_000,
         });
         let escrow = EscrowData {
@@ -2719,7 +2820,7 @@ impl Escrow {
             notes: None,
         };
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, None);
 
         // Persist all basket tokens/amounts alongside the primary EscrowData
         let mut basket_entries: Vec<TokenEntry> = Vec::new(&env);
@@ -2780,6 +2881,7 @@ impl Escrow {
         }
 
         let now = env.ledger().timestamp();
+        let prev_state = escrow.state.clone();
         escrow.buyer = Some(buyer.clone());
         escrow.state = EscrowState::Funded;
         escrow.funded_at = now;
@@ -2801,7 +2903,7 @@ impl Escrow {
             .persistent()
             .extend_ttl(&buyer_key, ext / 2, ext);
 
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         emit_escrow_funded(
             &env,
             escrow_id,
@@ -3073,7 +3175,9 @@ impl Escrow {
 
             let old_resolver = current_resolver.clone();
             escrow.resolvers = ResolverSet::Single(new_resolver.clone());
-            save_escrow(&env, escrow_id, &escrow);
+            // escrow.state is untouched by rotation, so the pre-mutation
+            // state is simply the current one.
+            save_escrow(&env, escrow_id, &escrow, Some(&escrow.state));
 
             emit_resolver_rotated(&env, escrow_id, old_resolver, new_resolver);
             Ok(())
@@ -3110,7 +3214,7 @@ impl Escrow {
 
         let prev_state = escrow.state.clone();
         escrow.state = EscrowState::RefundRequested;
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
 
         emit_refund_requested(
             &env,
@@ -3165,7 +3269,7 @@ impl Escrow {
 
         let prev_state = escrow.state.clone();
         escrow.state = EscrowState::Refunded;
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         increment_counter(&env, &DataKey::TotalRefunded)?;
 
         emit_refund_approved(
@@ -3198,6 +3302,7 @@ impl Escrow {
             let mut payees = Vec::new(&env);
             payees.push_back(Payee {
                 address: seller.clone(),
+                bps: BASIS_POINTS,
                 bps: 10_000,
             });
             let id = create_escrow_internal(
@@ -3771,12 +3876,12 @@ impl Escrow {
         );
         payout_basket_tokens(&env, escrow_id, &buyer)?;
 
+        let prev_state = escrow.state.clone();
         escrow.state = EscrowState::Refunded;
-        save_escrow(&env, escrow_id, &escrow);
+        save_escrow(&env, escrow_id, &escrow, Some(&prev_state));
         increment_counter(&env, &DataKey::TotalRefunded)?;
 
-        env.events()
-            .publish(("emergency_drain",), (escrow_id, buyer, seller));
+        emit_emergency_drain(&env, escrow_id, buyer, seller);
         Ok(())
     }
 }
@@ -3807,6 +3912,7 @@ mod test_edge_cases;
 mod test_emergency_drain;
 mod test_escrow_id;
 mod test_escrow_states;
+mod test_fallback_resolver;
 mod test_fee_calculation_accuracy;
 mod test_fee_config;
 mod test_fee_minimum;
