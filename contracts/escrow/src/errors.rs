@@ -91,4 +91,8 @@ pub enum ContractError {
     GracePeriodNotElapsed = 40,
     /// Returned when the maximum number of dispute appeals has been reached.
     MaxAppealsReached = 41,
+    /// Returned when the maximum number of messages for an escrow has been reached.
+    TooManyMessages = 42,
+    /// Returned when a multicall argument is missing or invalid.
+    InvalidMulticallArg = 43,
 }
