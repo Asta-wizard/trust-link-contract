@@ -923,7 +923,7 @@ impl Escrow {
             .storage()
             .instance()
             .get(&DataKey::FeeCollector)
-            .ok_or(ContractError::NotAuthorized)?;
+            .ok_or(ContractError::NotInitialized)?;
 
         let first_payee_addr = escrow
             .payees
@@ -1078,7 +1078,7 @@ impl Escrow {
             .storage()
             .instance()
             .get(&DataKey::FeeCollector)
-            .ok_or(ContractError::NotAuthorized)?;
+            .ok_or(ContractError::NotInitialized)?;
 
         let first_payee_addr = escrow
             .payees
