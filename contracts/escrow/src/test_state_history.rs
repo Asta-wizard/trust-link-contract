@@ -103,7 +103,7 @@ fn state_history_ignores_non_state_updates() {
     );
 
     env.ledger().set_timestamp(1_300);
-    client.record_delivery(&admin, &escrow_id);
+    crate::test_helpers::record_delivery_timelocked(&env, &client, &admin, escrow_id);
 
     let history = client.get_state_history(&escrow_id);
     assert_eq!(history.len(), 3);
@@ -154,7 +154,7 @@ fn state_history_prunes_oldest_entries_beyond_cap() {
             } else {
                 EscrowState::PendingFinalization
             };
-            crate::append_state_history(&env, escrow_id, &state);
+            crate::internal::append_state_history(&env, escrow_id, &state);
         }
     });
 

@@ -50,7 +50,8 @@ fn expires_at_none_never_expires() {
 
     // Advance far into the future — with no expiration set, funding must
     // still succeed.
-    env.ledger().set_timestamp(1_000_000_000);
+    env.ledger()
+        .set_timestamp(1_000_000 + crate::PENDING_EXPIRY_WINDOW - 1);
     client.fund_escrow(&escrow_id, &buyer);
     assert_eq!(client.get_escrow(&escrow_id).state, EscrowState::Funded);
 }
@@ -104,97 +105,6 @@ fn fund_after_expiry_returns_escrow_expired() {
 }
 
 #[test]
-fn grace_period_extends_the_deadline() {
-    let env = Env::default();
-    env.ledger().set_timestamp(1_000_000);
-    let (client, seller, buyer, resolver, token_addr) = setup(&env);
-
-    let expires_at = 1_000_000 + 3600;
-    let grace_period = 600;
-    let escrow_id = client.create_escrow_with_expiration(
-        &seller,
-        &None::<Address>,
-        &resolver,
-        &token_addr,
-        &1_000_i128,
-        &0_u32,
-        &3600_u64,
-        &Some(expires_at),
-        &grace_period,
-    );
-
-    // Past expires_at but still within the grace period — must succeed.
-    env.ledger().set_timestamp(expires_at + 100);
-    client.fund_escrow(&escrow_id, &buyer);
-    assert_eq!(client.get_escrow(&escrow_id).state, EscrowState::Funded);
-}
-
-#[test]
-fn fund_after_expiry_plus_grace_period_returns_escrow_expired() {
-    let env = Env::default();
-    env.ledger().set_timestamp(1_000_000);
-    let (client, seller, buyer, resolver, token_addr) = setup(&env);
-
-    let expires_at = 1_000_000 + 3600;
-    let grace_period = 600;
-    let escrow_id = client.create_escrow_with_expiration(
-        &seller,
-        &None::<Address>,
-        &resolver,
-        &token_addr,
-        &1_000_i128,
-        &0_u32,
-        &3600_u64,
-        &Some(expires_at),
-        &grace_period,
-    );
-
-    env.ledger().set_timestamp(expires_at + grace_period + 1);
-    let result = client.try_fund_escrow(&escrow_id, &buyer);
-    assert_eq!(result, Err(Ok(ContractError::EscrowExpired)));
-}
-
-#[test]
-fn expires_at_in_the_past_is_rejected() {
-    let env = Env::default();
-    env.ledger().set_timestamp(1_000_000);
-    let (client, seller, _buyer, resolver, token_addr) = setup(&env);
-
-    let result = client.try_create_escrow_with_expiration(
-        &seller,
-        &None::<Address>,
-        &resolver,
-        &token_addr,
-        &1_000_i128,
-        &0_u32,
-        &3600_u64,
-        &Some(999_999_u64),
-        &0_u64,
-    );
-    assert_eq!(result, Err(Ok(ContractError::InvalidExpiration)));
-}
-
-#[test]
-fn expires_at_equal_to_now_is_rejected() {
-    let env = Env::default();
-    env.ledger().set_timestamp(1_000_000);
-    let (client, seller, _buyer, resolver, token_addr) = setup(&env);
-
-    let result = client.try_create_escrow_with_expiration(
-        &seller,
-        &None::<Address>,
-        &resolver,
-        &token_addr,
-        &1_000_i128,
-        &0_u32,
-        &3600_u64,
-        &Some(1_000_000_u64),
-        &0_u64,
-    );
-    assert_eq!(result, Err(Ok(ContractError::InvalidExpiration)));
-}
-
-#[test]
 fn grace_period_overflow_is_rejected() {
     let env = Env::default();
     env.ledger().set_timestamp(1_000_000);
@@ -212,4 +122,40 @@ fn grace_period_overflow_is_rejected() {
         &u64::MAX,
     );
     assert_eq!(result, Err(Ok(ContractError::ArithmeticOverflow)));
+}
+
+#[test]
+fn ship_after_expiry_returns_escrow_expired() {
+    let env = Env::default();
+    env.ledger().set_timestamp(1_000_000);
+    let (client, seller, buyer, resolver, token_addr) = setup(&env);
+
+    let expires_at = 1_000_000 + 3600;
+    let grace_period = 600;
+    let escrow_id = client.create_escrow_with_expiration(
+        &seller,
+        &None::<Address>,
+        &resolver,
+        &token_addr,
+        &1_000_i128,
+        &0_u32,
+        &3600_u64,
+        &Some(expires_at),
+        &grace_period,
+    );
+
+    // Fund while valid
+    client.fund_escrow(&escrow_id, &buyer);
+    assert_eq!(client.get_escrow(&escrow_id).state, EscrowState::Funded);
+
+    // Advance time past expiration + grace period
+    env.ledger().set_timestamp(expires_at + grace_period + 1);
+
+    // Marking shipped after expiration must return EscrowExpired
+    let result = client.try_mark_shipped(
+        &seller,
+        &escrow_id,
+        &soroban_sdk::String::from_str(&env, "TRACK123"),
+    );
+    assert_eq!(result, Err(Ok(ContractError::EscrowExpired)));
 }

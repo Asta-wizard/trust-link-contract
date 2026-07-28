@@ -82,4 +82,23 @@ pub enum ContractError {
     IndexOutOfBounds = 36,
     /// Returned when a supplied expiration timestamp is not strictly in the future.
     InvalidExpiration = 37,
+    /// Returned when `record_delivery` is called before a delivery proposal is initiated.
+    DeliveryNotProposed = 38,
+    /// Returned when `record_delivery` is called before the required timelock delay has elapsed.
+    TimelockNotElapsed = 39,
+    /// Returned when `reclaim_expired` is called after `expires_at` but before
+    /// `expires_at + grace_period` has elapsed.
+    GracePeriodNotElapsed = 40,
+    /// Returned when the maximum number of dispute appeals has been reached.
+    MaxAppealsReached = 41,
+    /// Returned when `create_basket_escrow` is called with mismatched or empty `tokens`/`amounts`.
+    BasketTokenMismatch = 42,
+    /// Returned when a `multicall` call argument is missing or fails to decode into the expected type.
+    InvalidMulticallArg = 43,
+    /// Returned when a `Payee` list's basis points do not sum to exactly `BASIS_POINTS` (10_000).
+    PayeeBpsMismatch = 44,
+    /// Returned when the maximum number of messages for an escrow has been reached.
+    TooManyMessages = 42,
+    /// Returned when a multicall argument is missing or invalid.
+    InvalidMulticallArg = 43,
 }

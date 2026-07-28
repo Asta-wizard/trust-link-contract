@@ -24,6 +24,7 @@ pub enum DataKey {
     MinAmount,
     ApprovedResolvers,
     ResolverStrict,
+    AccumulatedFees(Address),
     /// Schema version of the data currently in storage. Absent on contracts
     /// deployed before migrations existed, which is read as version 0.
     StorageVersion,
@@ -44,6 +45,8 @@ pub enum DataKey {
     TotalRefunded,
     EvidenceLog(u64),
     BasketTokens(u64),
+    DeliveryProposal(u64),
+    TimelockOp(u32),
 }
 
 /// A token-amount pair for multi-token basket escrows.
@@ -52,6 +55,21 @@ pub enum DataKey {
 pub struct TokenEntry {
     pub token: Address,
     pub amount: i128,
+}
+
+/// Optional per-escrow expiration schedule, set via `create_escrow_with_expiration`.
+///
+/// `expires_at` is the hard deadline: `fund_escrow` and `mark_shipped` both
+/// reject once `now >= expires_at`. `grace_period` is additional buffer time
+/// *after* `expires_at` during which `reclaim_expired` is still blocked, to
+/// protect a fund/ship transaction that's still landing right at the
+/// deadline. Only after `expires_at + grace_period` has passed can the buyer
+/// actually reclaim funds.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExpirySchedule {
+    pub expires_at: u64,
+    pub grace_period: u64,
 }
 
 #[contracttype]
@@ -103,14 +121,7 @@ impl ResolverSet {
     pub fn contains(&self, addr: &Address) -> bool {
         match self {
             ResolverSet::Single(resolver) => addr == resolver,
-            ResolverSet::Multi(m) => {
-                for resolver in m.resolvers.clone() {
-                    if resolver == *addr {
-                        return true;
-                    }
-                }
-                false
-            }
+            ResolverSet::Multi(m) => crate::internal::contains(&m.resolvers, addr),
             ResolverSet::Fallback(f) => addr == &f.primary || addr == &f.backup,
         }
     }
@@ -121,6 +132,29 @@ impl ResolverSet {
             ResolverSet::Single(_) => 1,
             ResolverSet::Multi(m) => m.threshold,
             ResolverSet::Fallback(_) => 1,
+        }
+    }
+
+    /// Returns true if `addr` is authorized to act as a resolver *right now*.
+    ///
+    /// Differs from `contains()` (identity membership only, used for
+    /// seller/buyer conflict checks at creation time) by additionally
+    /// enforcing `FallbackResolver.dispute_deadline`: the primary resolver
+    /// may always act, but the backup is only authorized once `now` has
+    /// reached the deadline, so the backup can't preempt the primary's
+    /// window to resolve.
+    pub fn can_resolve_now(&self, addr: &Address, now: u64) -> bool {
+        match self {
+            ResolverSet::Fallback(f) => {
+                if addr == &f.primary {
+                    true
+                } else if addr == &f.backup {
+                    now >= f.dispute_deadline
+                } else {
+                    false
+                }
+            }
+            _ => self.contains(addr),
         }
     }
 }
@@ -283,4 +317,44 @@ pub enum EscrowState {
     Canceled,
     PendingFinalization,
     Expired,
+}
+
+/// Identifies a specific privileged admin operation subject to the two-step
+/// timelock delay. The numeric discriminant is used as the `TimelockOp(u32)`
+/// storage key. Do not renumber existing entries; append new operations only.
+#[contracttype]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[repr(u32)]
+pub enum TimelockOperation {
+    SetAdmin = 1,
+    Upgrade = 2,
+    SetProtocolFee = 3,
+    SetArbitrationFee = 4,
+    SetPlatformFee = 5,
+    SetTreasury = 6,
+    SetFeeCollector = 7,
+    SetTtlExtension = 8,
+    SetAmountLimits = 9,
+    AddApprovedResolver = 10,
+    RemoveApprovedResolver = 11,
+    SetResolverStrict = 12,
+    SetTokenAllowlistEnabled = 13,
+    AddAllowedToken = 14,
+    RemoveAllowedToken = 15,
+    PauseContract = 16,
+    UnpauseContract = 17,
+}
+
+/// A queued admin change awaiting the 24-hour timelock delay before it can be
+/// executed. `params` is a contract-serialised `Vec<Val>` mirroring the
+/// operation's function arguments (excluding `env` and `caller/admin`),
+/// encoded with `IntoVal` / decoded with `TryFromVal` in the execute step.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TimelockProposal {
+    pub operation: u32,
+    pub proposer: Address,
+    pub params: Vec<soroban_sdk::Val>,
+    pub queued_at: u64,
+    pub ready_at: u64,
 }
