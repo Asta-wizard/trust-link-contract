@@ -624,7 +624,7 @@ pub(crate) fn ensure_not_expired(env: &Env, escrow_id: u64) -> Result<(), Contra
     if let Some(schedule) = env
         .storage()
         .persistent()
-        .get::<crate::DataKey, crate::ExpirySchedule>(&crate::DataKey::PendingExpiry(escrow_id))
+        .get::<DataKey, crate::ExpirySchedule>(&DataKey::PendingExpiry(escrow_id))
     {
         if env.ledger().timestamp() >= schedule.expires_at {
             return Err(ContractError::EscrowExpired);

@@ -748,9 +748,6 @@ impl Escrow {
             return Err(ContractError::InvalidState);
         }
 
-        // Block shipping of expired escrows.
-        crate::internal::ensure_not_expired(&env, escrow_id)?;
-
         if tracking_id.is_empty() {
             return Err(ContractError::InvalidTrackingId);
         }
