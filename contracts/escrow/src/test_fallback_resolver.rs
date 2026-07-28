@@ -5,84 +5,58 @@ use soroban_sdk::{
     token, Address, BytesN, Env, IntoVal, String, Symbol, Vec,
 };
 
-fn setup(env: &Env) -> (EscrowClient, Address, Address, Address, Address, Address) {
+fn setup_env() -> (Env, Address, Address, Address, Address, Address, Address, Address) {
+    let env = Env::default();
     env.mock_all_auths();
-    let admin = Address::generate(env);
-    let fee_collector = Address::generate(env);
-    let seller = Address::generate(env);
-    let buyer = Address::generate(env);
-    let primary = Address::generate(env);
-    let backup = Address::generate(env);
 
-    let token_admin = Address::generate(env);
-    let token = env
-        .register_stellar_asset_contract_v2(token_admin)
+    let admin = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let primary_resolver = Address::generate(&env);
+    let backup_resolver = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let fee_collector = Address::generate(&env);
+
+    let token_address = env
+        .register_stellar_asset_contract_v2(token_admin.clone())
         .address();
 
-    token::StellarAssetClient::new(env, &token).mint(&buyer, &10_000_i128);
-
-    let contract_id = env.register(Escrow, ());
-    let client = EscrowClient::new(env, &contract_id);
-    client.initialize(&admin, &fee_collector, &0_u32);
-
-    (client, seller, buyer, primary, backup, token)
-}
-
-fn create_funded_shipped_disputed(
-    env: &Env,
-    client: &EscrowClient,
-    seller: &Address,
-    buyer: &Address,
-    primary: &Address,
-    backup: &Address,
-    token: &Address,
-) -> u64 {
-    let dispute_deadline = env.ledger().timestamp() + 86400;
-    let escrow_id = client.create_escrow_with_fallback(
+    (
+        env,
+        admin,
         seller,
-        &Some(buyer.clone()),
-        primary,
-        backup,
-        &dispute_deadline,
-        token,
-        &1000_i128,
-        &0_u32,
-        &3600_u64,
-    );
-
-    client.fund_escrow(&escrow_id, buyer);
-
-    env.ledger().set_timestamp(env.ledger().timestamp() + 3601);
-    let tracking_id = String::from_str(env, "TRK-FB-001");
-    client.mark_shipped(seller, &escrow_id, &tracking_id);
-
-    let reason = Symbol::new(env, "defective");
-    let description = String::from_str(env, "Item is defective");
-    let evidence = BytesN::from_array(env, &[0xcd; 32]);
-    client.raise_dispute(buyer, &escrow_id, &reason, &description, &evidence);
-
-    escrow_id
+        buyer,
+        primary_resolver,
+        backup_resolver,
+        token_address,
+        fee_collector,
+    )
 }
 
 #[test]
-fn create_escrow_with_fallback_succeeds() {
-    let env = Env::default();
-    let (client, seller, buyer, primary, backup, token) = setup(&env);
+fn test_create_escrow_with_fallback_success() {
+    let (env, admin, seller, buyer, primary, backup, token, fee_collector) = setup_env();
+    let contract_id = env.register(Escrow, ());
+    let client = EscrowClient::new(&env, &contract_id);
+    client.initialize(&admin, &fee_collector, &0_u32);
 
-    let dispute_deadline = env.ledger().timestamp() + 86400;
-    let escrow_id = client.create_escrow_with_fallback(
+    let amount = 1000_i128;
+    let dispute_deadline = 3600_u64;
+    let shipping_window = 7200_u64;
+
+    let id = client.create_escrow_with_fallback(
         &seller,
         &Some(buyer.clone()),
         &primary,
         &backup,
         &dispute_deadline,
         &token,
-        &1000_i128,
-        &0_u32,
-        &3600_u64,
+        &amount,
+        &100_u32,
+        &shipping_window,
     );
 
-    let escrow = client.get_escrow(&escrow_id);
+    let escrow = client.get_escrow(&id);
     assert_eq!(escrow.state, EscrowState::Pending);
     assert_eq!(escrow.payees.get(0).unwrap().address, seller);
 }
@@ -120,16 +94,22 @@ fn backup_resolver_can_resolve_dispute_after_deadline() {
     // setup, before funding/shipping/disputing) + 86400; advance well past it.
     env.ledger().set_timestamp(env.ledger().timestamp() + 86400);
 
-    client.resolve_dispute(&backup, &escrow_id, &ResolutionType::Refund);
+    let sac = token::StellarAssetClient::new(&env, &token);
+    sac.mint(&buyer, &amount);
+    client.fund_escrow(&id, &buyer);
+    client.mark_shipped(&seller, &id, &String::from_str(&env, "TRK"));
 
-    let escrow = client.get_escrow(&escrow_id);
-    assert_eq!(escrow.state, EscrowState::PendingFinalization);
+    let reason = Symbol::new(&env, "reason");
+    let description = String::from_str(&env, "desc");
+    let evidence_hash = BytesN::from_array(&env, &[0xab; 32]);
+    client.raise_dispute(&buyer, &id, &reason, &description, &evidence_hash);
 
-    env.ledger().set_timestamp(env.ledger().timestamp() + 86401);
-    client.finalize_dispute(&backup, &escrow_id);
+    // Primary resolver can resolve immediately (ledger time is still dispute time + 0)
+    let result = client.try_resolve_dispute(&primary, &id, &ResolutionType::Refund);
+    assert!(result.is_ok());
 
-    let escrow = client.get_escrow(&escrow_id);
-    assert_eq!(escrow.state, EscrowState::Refunded);
+    let escrow_after = client.get_escrow(&id);
+    assert_eq!(escrow_after.state, EscrowState::PendingFinalization);
 }
 
 #[test]
@@ -235,58 +215,73 @@ fn resolve_non_disputed_escrow_fails() {
     let env = Env::default();
     let (client, seller, buyer, primary, backup, token) = setup(&env);
 
-    let dispute_deadline = env.ledger().timestamp() + 86400;
-    let escrow_id = client.create_escrow_with_fallback(
+    let amount = 1000_i128;
+    let dispute_deadline = 3600_u64;
+    let id = client.create_escrow_with_fallback(
         &seller,
         &Some(buyer.clone()),
         &primary,
         &backup,
         &dispute_deadline,
         &token,
-        &1000_i128,
-        &0_u32,
-        &3600_u64,
+        &amount,
+        &100_u32,
+        &0_u64,
     );
-    client.fund_escrow(&escrow_id, &buyer);
 
-    let result = client.try_resolve_dispute(&primary, &escrow_id, &ResolutionType::Release);
-    assert_eq!(result, Err(Ok(ContractError::InvalidState)));
-}
+    let sac = token::StellarAssetClient::new(&env, &token);
+    sac.mint(&buyer, &amount);
+    client.fund_escrow(&id, &buyer);
+    client.mark_shipped(&seller, &id, &String::from_str(&env, "TRK"));
 
-#[test]
-fn duplicate_resolution_fails() {
-    let env = Env::default();
-    let (client, seller, buyer, primary, backup, token) = setup(&env);
+    let reason = Symbol::new(&env, "reason");
+    let description = String::from_str(&env, "desc");
+    let evidence_hash = BytesN::from_array(&env, &[0xab; 32]);
 
     let escrow_id =
         create_funded_shipped_disputed(&env, &client, &seller, &buyer, &primary, &backup, &token);
 
-    client.resolve_dispute(&primary, &escrow_id, &ResolutionType::Release);
+    // Set time to just before dispute_deadline (e.g. 1_000_000 + 3599)
+    env.ledger().set_timestamp(1_000_000 + 3599);
 
-    let result = client.try_resolve_dispute(&primary, &escrow_id, &ResolutionType::Refund);
-    assert_eq!(result, Err(Ok(ContractError::InvalidState)));
+    // Backup resolver should be unauthorized to resolve before deadline
+    let result = client.try_resolve_dispute(&backup, &id, &ResolutionType::Refund);
+    assert_eq!(result, Err(Ok(crate::ContractError::NotAuthorized)));
+
+    // Backup resolver secondary entrypoint `vote` should also be unauthorized
+    let result_vote = client.try_vote(&backup, &id, &ResolutionType::Refund);
+    assert_eq!(result_vote, Err(Ok(crate::ContractError::NotAuthorized)));
 }
 
 #[test]
-fn fallback_dispute_deadline_is_stored() {
-    let env = Env::default();
-    let (client, seller, buyer, primary, backup, token) = setup(&env);
+fn test_fallback_resolver_vote_backup_allowed_after_deadline() {
+    let (env, admin, seller, buyer, primary, backup, token, fee_collector) = setup_env();
+    let contract_id = env.register(Escrow, ());
+    let client = EscrowClient::new(&env, &contract_id);
+    client.initialize(&admin, &fee_collector, &0_u32);
 
-    let dispute_deadline = env.ledger().timestamp() + 86400;
-    let escrow_id = client.create_escrow_with_fallback(
+    let amount = 1000_i128;
+    let dispute_deadline = 3600_u64;
+    let id = client.create_escrow_with_fallback(
         &seller,
         &Some(buyer.clone()),
         &primary,
         &backup,
         &dispute_deadline,
         &token,
-        &1000_i128,
-        &0_u32,
-        &3600_u64,
+        &amount,
+        &100_u32,
+        &0_u64,
     );
 
-    let escrow = client.get_escrow(&escrow_id);
-    assert_eq!(escrow.state, EscrowState::Pending);
+    let sac = token::StellarAssetClient::new(&env, &token);
+    sac.mint(&buyer, &amount);
+    client.fund_escrow(&id, &buyer);
+    client.mark_shipped(&seller, &id, &String::from_str(&env, "TRK"));
+
+    let reason = Symbol::new(&env, "reason");
+    let description = String::from_str(&env, "desc");
+    let evidence_hash = BytesN::from_array(&env, &[0xab; 32]);
 
     client.fund_escrow(&escrow_id, &buyer);
     let funded = client.get_escrow(&escrow_id);

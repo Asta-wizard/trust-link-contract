@@ -325,7 +325,7 @@ pub(crate) fn validate_payees(env: &Env, payees: &Vec<Payee>) -> Result<(), Cont
     }
 
     if total_bps != 10_000 {
-        return Err(ContractError::InvalidAmount);
+        return Err(ContractError::PayeeBpsMismatch);
     }
 
     Ok(())
