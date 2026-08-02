@@ -37,22 +37,22 @@ or reclaim_expired()                 │                      │           auto
        v                             v                      v                │
   ┌──────────┐                 ┌──────────┐           ┌──────────┐           │
   │CANCELLED │                 │ DISPUTED │◀──────────┼──────────┼───────────┘
-  │    or    │                 └────┬─────┘           │          │           
-  │ EXPIRED  │                      │                 │          v           
-  └──────────┘              resolve_dispute()         │    ┌──────────┐      
-                                    │                 │    │COMPLETED │      
-                                    v                 │    └──────────┘      
-                          ┌─────────────────────┐     │                      
-                          │ PENDINGFINALIZATION │     │                      
-                          └─────────┬───────────┘     │                      
-                                    │                 │                      
-                           finalize_dispute()         │                      
-                                    │                 │                      
-                                    v                 │                      
-                            ┌───────────────┐         │                      
-                            │   COMPLETED   │◀────────┘                      
-                            │  or REFUNDED  │                                
-                            └───────────────┘                                
+  │    or    │                 └────┬─────┘           │          │
+  │ EXPIRED  │                      │                 │          v
+  └──────────┘              resolve_dispute()         │    ┌──────────┐
+                                    │                 │    │COMPLETED │
+                                    v                 │    └──────────┘
+                          ┌─────────────────────┐     │
+                          │ PENDINGFINALIZATION │     │
+                          └─────────┬───────────┘     │
+                                    │                 │
+                           finalize_dispute()         │
+                                    │                 │
+                                    v                 │
+                            ┌───────────────┐         │
+                            │   COMPLETED   │◀────────┘
+                            │  or REFUNDED  │
+                            └───────────────┘
 
   (Appeal Flow: PendingFinalization ──appeal_dispute()──▶ Disputed)
   (Refund Flow: Funded/Shipped ──request_refund()──▶ RefundRequested ──approve_refund()──▶ Refunded)
@@ -998,3 +998,8 @@ The contract commits to the hash, but does not validate evidence content. The re
 
 End of README.
 
+### Running E2E Tests
+To run the end-to-end lifecycle testing scripts against testnet, run:
+```bash
+make e2e
+```

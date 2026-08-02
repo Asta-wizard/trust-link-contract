@@ -101,3 +101,9 @@ testnet-stop: ## Stop and remove the local devnet container
 # Full setup
 setup: bindings-install build test ## Full project setup (install + build + test)
 	@echo "Setup complete!"
+.PHONY: e2e
+e2e:
+	./e2e/01_setup_and_deploy.sh
+	./e2e/02_happy_path.sh
+	./e2e/03_dispute_path.sh
+	./e2e/04_cancel_path.sh
