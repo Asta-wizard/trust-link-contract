@@ -1,5 +1,5 @@
-.PHONY: help build build-wasm test fmt clippy bench clean check check-error-codes doc audit indexer-test \
-	testnet testnet-reset testnet-stop fuzz-build fuzz
+.PHONY: help build build-wasm test fmt clippy bench clean check check-error-codes doc audit indexer-test xtask-test \
+	testnet testnet-reset testnet-stop fuzz-build fuzz fuzz-check
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -30,6 +30,9 @@ clippy: ## Run clippy lints
 
 bench: ## Run benchmarks (if available)
 	cargo test --release -- --ignored
+
+fuzz-check: ## Type-check every fuzz target on stable (no cargo-fuzz needed)
+	cargo check --manifest-path contracts/escrow/fuzz/Cargo.toml --all-targets
 
 fuzz-build: ## Compile every fuzz target (requires nightly + cargo-fuzz)
 	cd contracts/escrow && cargo fuzz build --release
@@ -77,6 +80,10 @@ bindings-install: ## Install bindings dependencies
 # Indexer
 indexer-test: ## Typecheck and test the event indexer
 	cd indexer && npm run typecheck && npm test
+
+# Developer CLI (xtask is its own workspace, so root cargo test does not reach it)
+xtask-test: ## Test the cargo xtask developer CLI
+	cd xtask && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
 
 # Detect Docker Compose v1 vs v2
 DOCKER_COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
