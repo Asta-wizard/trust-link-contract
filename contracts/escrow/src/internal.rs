@@ -136,40 +136,6 @@ pub(crate) fn tally_votes(
     }
 }
 
-/// Validity matrix for escrow state transitions (#9).
-///
-/// Returns `Ok(())` if the move from `from` to `to` is legal under the
-/// escrow lifecycle, `Err(InvalidStateTransition)` otherwise. Provided as a
-/// pure helper alongside the existing inline guards so reviewers can audit
-/// every legal edge in one place.
-#[allow(dead_code)]
-pub fn transition_state(from: &EscrowState, to: &EscrowState) -> Result<(), ContractError> {
-    use EscrowState::*;
-    let allowed = matches!(
-        (from, to),
-        (Pending, Funded)
-            | (Pending, Canceled)
-            | (Funded, Shipped)
-            | (Funded, Disputed)
-            | (Funded, Refunded)
-            | (Funded, RefundRequested)
-            | (RefundRequested, Refunded)
-            | (Shipped, Completed)
-            | (Shipped, Disputed)
-            | (Shipped, Refunded)
-            | (Disputed, Completed)
-            | (Disputed, Refunded)
-            | (Disputed, PendingFinalization)
-            | (PendingFinalization, Completed)
-            | (PendingFinalization, Refunded)
-            | (PendingFinalization, Disputed)
-    );
-    if allowed {
-        Ok(())
-    } else {
-        Err(ContractError::InvalidStateTransition)
-    }
-}
 pub(crate) fn ensure_not_paused(env: &Env) -> Result<(), ContractError> {
     let paused: bool = env
         .storage()

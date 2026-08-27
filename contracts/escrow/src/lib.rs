@@ -261,7 +261,6 @@ mod test_dispute_window;
 mod test_edge_cases;
 mod test_emergency_drain;
 mod test_escrow_id;
-mod test_escrow_states;
 mod test_expiration;
 mod test_fallback_resolver;
 mod test_fee_calculation_accuracy;
