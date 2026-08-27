@@ -225,7 +225,7 @@ fn resolve_or_vote_internal(
         threshold,
     );
 
-    if let Some(final_resolution) = tally_votes(&votes, threshold) {
+    if let Some(final_resolution) = tally_votes(&votes, threshold)? {
         execute_resolution_transition(env, escrow_id, escrow, caller, final_resolution, votes)?;
     } else {
         save_resolver_votes(env, escrow_id, &votes);
